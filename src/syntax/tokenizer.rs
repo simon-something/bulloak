@@ -87,7 +87,7 @@ impl Token {
     fn is_branch(&self) -> bool {
         match self.kind {
             TokenKind::Tee | TokenKind::Corner => true,
-            TokenKind::Word | TokenKind::When | TokenKind::Given | TokenKind::It => false,
+            TokenKind::Word | TokenKind::Comment | TokenKind::When | TokenKind::Given | TokenKind::It => false,
         }
     }
 }
@@ -120,6 +120,8 @@ pub enum TokenKind {
     Given,
     /// A token representing an `it` keyword.
     It,
+    /// A token representing a comment, starting with // and ending with a new line
+    Comment
 }
 
 /// A tokenizer for .tree files.
@@ -329,8 +331,9 @@ impl<'s, T: Borrow<Tokenizer>> TokenizerI<'s, T> {
                 }),
                 // Comments start with `//`.
                 '/' if self.peek().is_some_and(|c| c == '/') => {
-                    self.exit_mode();
-                    self.scan_comments();
+                    let token = self.scan_comment();
+
+                    tokens.push(token);
                 }
                 _ => {
                     let token = self.scan_word()?;
@@ -352,13 +355,23 @@ impl<'s, T: Borrow<Tokenizer>> TokenizerI<'s, T> {
         Ok(tokens)
     }
 
-    /// Discards all characters until the end of the line.
-    fn scan_comments(&self) {
-        loop {
-            match self.peek() {
-                Some('\n') | None => break,
-                Some(_) => self.scan(),
-            };
+    /// Return a comment as a single token
+    fn scan_comment(&self) -> Token {
+        let span_start = self.pos();
+        let mut lexeme = String::new();
+
+        lexeme.push('/');
+
+        while let Some(c) = self.peek() {
+            if c == '\n' { break; }
+            self.scan();
+            lexeme.push(c);
+        }
+
+        Token {
+            kind: TokenKind::Comment,
+            span: self.span().with_start(span_start),
+            lexeme
         }
     }
 
