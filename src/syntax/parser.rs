@@ -3,7 +3,7 @@
 use std::fmt;
 use std::{borrow::Borrow, cell::Cell, result};
 
-use super::ast::{Action, Ast, Condition, Description, Root};
+use super::ast::{Action, Ast, Condition, Comment, Description, Root};
 use super::tokenizer::{Token, TokenKind};
 use crate::span::Span;
 use crate::utils::{repeat_str, sanitize};
@@ -263,7 +263,7 @@ impl<'t, P: Borrow<Parser>> ParserI<'t, P> {
         while let Some(current_token) = self.current() {
             let child = match current_token.kind {
                 TokenKind::Corner | TokenKind::Tee => self.parse_branch(current_token)?,
-                TokenKind::Word => Err(self.error(
+                TokenKind::Word | TokenKind::Comment => Err(self.error( // TODO: CommentUnexpected error kind
                     current_token.span,
                     ErrorKind::WordUnexpected(current_token.lexeme.clone()),
                 ))?,
@@ -369,6 +369,7 @@ impl<'t, P: Borrow<Parser>> ParserI<'t, P> {
             let ast = match next_token.kind {
                 TokenKind::When | TokenKind::Given => self.parse_condition(current_token)?,
                 TokenKind::It => self.parse_action(current_token)?,
+                TokenKind::Comment => self.parse_comment(current_token)?, //TODO: This isn't correct -> should push the comment to the condition children, but should continue with the next node as children too
                 _ => Err(self.error(
                     next_token.span,
                     ErrorKind::TokenUnexpected(next_token.lexeme.clone()),
@@ -478,6 +479,16 @@ impl<'t, P: Borrow<Parser>> ParserI<'t, P> {
         Ok(Ast::ActionDescription(Description {
             text: format!("{}{}", repeat_str(" ", column_delta), text),
             span: Span::new(token.span.start, previous.span.end),
+        }))
+    }
+
+    /// Parse a comment node.
+    /// 
+    /// A comment node is an optional node coming before a condition
+    fn parse_comment(&self, token: &Token) -> Result<Ast> {
+        Ok(Ast::ConditionComment( Comment {
+            text: token.lexeme.clone(),
+            span: Span::new(token.span.start, token.span.end)
         }))
     }
 

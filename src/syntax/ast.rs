@@ -20,6 +20,10 @@ pub enum Ast {
     ///
     /// This node can only appear as a child of an action.
     ActionDescription(Description),
+    /// Additional condition comment.
+    /// 
+    /// This node can only appeaer as a child of a condition.
+    ConditionComment(Comment)
 }
 
 impl Ast {
@@ -31,6 +35,7 @@ impl Ast {
             Self::Condition(x) => &x.span,
             Self::Action(x) => &x.span,
             Self::ActionDescription(x) => &x.span,
+            Self::ConditionComment(x) => &x.span
         }
     }
 
@@ -66,6 +71,18 @@ pub struct Condition {
     /// The children AST nodes of this node.
     pub children: Vec<Ast>,
 }
+
+/// A comment node of the AST.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Comment {
+    /// The text of the comment
+    ///
+    /// For example: "// This is an hedge case".
+    pub text: String,
+    /// The span that encompasses this node.
+    pub span: Span
+}
+
 
 /// An action node of the AST.
 #[derive(Debug, PartialEq, Eq)]
