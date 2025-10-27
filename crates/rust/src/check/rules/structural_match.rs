@@ -4,7 +4,6 @@ use crate::{
     check::violation::{Violation, ViolationKind},
     config::Config,
     rust::ParsedRustFile,
-    scaffold::Generator,
     utils::to_snake_case,
 };
 use anyhow::Result;
@@ -115,8 +114,6 @@ pub fn check_structural_match(
 
 /// Extract expected test structure from AST.
 fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> {
-    let generator = Generator::new(cfg);
-
     let ast_root = match ast {
         Ast::Root(r) => r,
         _ => anyhow::bail!("Expected Root node"),
@@ -127,11 +124,11 @@ fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> 
 
     // Collect helpers
     if !cfg.skip_helpers {
-        collect_helpers_recursive(&ast_root.children, &mut helpers, &generator);
+        collect_helpers_recursive(&ast_root.children, &mut helpers);
     }
 
     // Collect test functions
-    collect_tests_recursive(&ast_root.children, &[], &mut test_functions, &generator);
+    collect_tests_recursive(&ast_root.children, &[], &mut test_functions);
 
     Ok(ExpectedTests {
         helpers,
@@ -143,13 +140,12 @@ fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> 
 fn collect_helpers_recursive(
     children: &[Ast],
     helpers: &mut HashSet<String>,
-    generator: &Generator,
 ) {
     for child in children {
         if let Ast::Condition(condition) = child {
             let name = to_snake_case(&condition.title);
             helpers.insert(name);
-            collect_helpers_recursive(&condition.children, helpers, generator);
+            collect_helpers_recursive(&condition.children, helpers);
         }
     }
 }
@@ -159,7 +155,6 @@ fn collect_tests_recursive(
     children: &[Ast],
     parent_helpers: &[String],
     tests: &mut Vec<TestInfo>,
-    generator: &Generator,
 ) {
     for child in children {
         match child {
@@ -197,7 +192,7 @@ fn collect_tests_recursive(
                 }
 
                 // Process nested conditions
-                collect_tests_recursive(&condition.children, &new_helpers, tests, generator);
+                collect_tests_recursive(&condition.children, &new_helpers, tests);
             }
             Ast::Action(action) => {
                 // Root-level action (no condition)

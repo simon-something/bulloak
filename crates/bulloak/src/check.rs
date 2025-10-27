@@ -57,11 +57,11 @@ impl Check {
     ///
     /// Note that we don't deal with `solang_parser` errors at all.
     pub(crate) fn run(&self, cfg: &Cli) {
-        match self.backend {
-            Backend::Rust => return self.run_rust_check(),
-            Backend::Solidity => {} // Continue with Solidity check below
+        if self.backend == Backend::Rust {
+            return self.run_rust_check();
         }
 
+        // Solidity check
         let mut specs = Vec::new();
         for pattern in &self.files {
             match expand_glob(pattern.clone()) {

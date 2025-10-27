@@ -78,35 +78,41 @@ impl Generator {
 
         let mut result = formatted;
         for (test_name, comments) in test_comments {
-            // Find the test function and add the comments
-            let pattern = format!("fn {}() {{", test_name);
-            if let Some(pos) = result.find(&pattern) {
-                let closing_brace_pos = pos + pattern.len();
-                // Check if it's an empty body (just whitespace before })
-                if let Some(next_brace) = result[closing_brace_pos..].find('}') {
-                    let body = &result[closing_brace_pos..closing_brace_pos + next_brace];
-                    // Only add comments if body is empty or just contains helper setup
-                    if body.trim().is_empty() {
-                        // Empty body - just add comments with proper indentation
-                        let all_comments = comments.join("\n        ");
-                        let comment_str = format!("\n        {}\n    ", all_comments);
-                        let insertion_pos = closing_brace_pos + next_brace;
-                        result.insert_str(insertion_pos, &comment_str);
-                    } else if !body.contains("//") && body.contains("let _ctx") {
-                        // Has helper call - add comments after it
-                        let all_comments = comments.join("\n        ");
-                        let trimmed_body = body.trim_end();
-                        let chars_to_remove = body.len() - trimmed_body.len();
-                        result.replace_range(
-                            closing_brace_pos + next_brace - chars_to_remove..closing_brace_pos + next_brace,
-                            &format!("\n        {}\n    ", all_comments)
-                        );
-                    }
-                }
-            }
+            self.insert_comments_for_test(&mut result, &test_name, &comments);
         }
 
         result
+    }
+
+    /// Insert comments into a specific test function body.
+    fn insert_comments_for_test(&self, result: &mut String, test_name: &str, comments: &[String]) {
+        let pattern = format!("fn {}() {{", test_name);
+        let Some(pos) = result.find(&pattern) else {
+            return;
+        };
+
+        let closing_brace_pos = pos + pattern.len();
+        let Some(next_brace) = result[closing_brace_pos..].find('}') else {
+            return;
+        };
+
+        let body = &result[closing_brace_pos..closing_brace_pos + next_brace];
+        let all_comments = comments.join("\n        ");
+
+        if body.trim().is_empty() {
+            // Empty body - just add comments with proper indentation
+            let comment_str = format!("\n        {}\n    ", all_comments);
+            let insertion_pos = closing_brace_pos + next_brace;
+            result.insert_str(insertion_pos, &comment_str);
+        } else if !body.contains("//") && body.contains("let _ctx") {
+            // Has helper call - add comments after it
+            let trimmed_body = body.trim_end();
+            let chars_to_remove = body.len() - trimmed_body.len();
+            result.replace_range(
+                closing_brace_pos + next_brace - chars_to_remove..closing_brace_pos + next_brace,
+                &format!("\n        {}\n    ", all_comments)
+            );
+        }
     }
 
     /// Collect test function names and their comments (grouped by test function).
@@ -196,8 +202,8 @@ impl Generator {
         for child in children {
             if let Ast::Condition(condition) = child {
                 let name = to_snake_case(&condition.title);
-                if !seen.contains(&name) {
-                    seen.insert(name.clone());
+                if seen.insert(name.clone()) {
+                    // insert returns true if the value was newly inserted
                     helpers.push((name, condition.title.clone()));
                 }
                 self.collect_helpers_recursive(&condition.children, helpers, seen);

@@ -111,7 +111,6 @@ impl Scaffold {
 
         match self.backend {
             Backend::Rust => {
-                // Rust backend
                 let ast = bulloak_syntax::parse_one(&text)?;
                 let rust_cfg = bulloak_rust::Config {
                     files: self.files.iter().map(|p| p.display().to_string()).collect(),
@@ -121,17 +120,17 @@ impl Scaffold {
                 let emitted = bulloak_rust::scaffold(&ast, &rust_cfg)?;
 
                 if self.write_files {
-                    let output_file = file.with_file_name(format!(
-                        "{}_test.rs",
-                        file.file_stem().unwrap().to_str().unwrap()
-                    ));
+                    let file_stem = file
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .ok_or_else(|| anyhow::anyhow!("Invalid file name: {}", file.display()))?;
+                    let output_file = file.with_file_name(format!("{}_test.rs", file_stem));
                     self.write_file(&emitted, &output_file);
                 } else {
                     println!("{emitted}");
                 }
             }
             Backend::Solidity => {
-                // Solidity backend
                 let emitted = scaffold(&text, &cfg.into())?;
                 let formatted = fmt(&emitted).unwrap_or_else(|err| {
                     eprintln!("{}: {}", "WARN".yellow(), err);
