@@ -16,7 +16,7 @@ fn scaffolds_rust_trees() {
 
     for tree_name in trees {
         let tree_path = tests_path.join(tree_name);
-        let output = cmd(&binary_path, "scaffold", &tree_path, &["--rust"]);
+        let output = cmd(&binary_path, "scaffold", &tree_path, &["--backend", "rust"]);
         let actual = String::from_utf8(output.stdout).unwrap();
 
         let mut output_file = tree_path.clone();
@@ -51,7 +51,7 @@ fn scaffolds_rust_trees_skip_helpers() {
     let tree_name = "basic.tree";
 
     let tree_path = tests_path.join(tree_name);
-    let output = cmd(&binary_path, "scaffold", &tree_path, &["--rust", "-m"]);
+    let output = cmd(&binary_path, "scaffold", &tree_path, &["--backend", "rust", "-m"]);
     let actual = String::from_utf8(output.stdout).unwrap();
 
     // Should not contain helper functions
@@ -77,7 +77,7 @@ fn scaffolds_rust_trees_format_descriptions() {
         &binary_path,
         "scaffold",
         &tree_path,
-        &["--rust", "--format-descriptions"],
+        &["--backend", "rust", "--format-descriptions"],
     );
     let actual = String::from_utf8(output.stdout).unwrap();
 

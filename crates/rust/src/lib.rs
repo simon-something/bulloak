@@ -10,9 +10,9 @@
 pub mod check;
 pub mod config;
 pub mod constants;
-pub mod hir;
 pub mod rust;
 pub mod scaffold;
+mod utils;
 
 pub use check::{Violation, ViolationKind};
 pub use config::Config;

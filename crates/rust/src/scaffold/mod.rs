@@ -1,11 +1,11 @@
 //! Scaffold module for generating Rust test code.
 
 pub mod comment;
-pub mod emitter;
+pub mod generator;
 
-pub use emitter::Emitter;
+pub use generator::Generator;
 
-use crate::{config::Config, hir::Translator};
+use crate::config::Config;
 use anyhow::Result;
 use bulloak_syntax::Ast;
 
@@ -15,13 +15,6 @@ use bulloak_syntax::Ast;
 ///
 /// Returns an error if scaffolding fails.
 pub fn scaffold(ast: &Ast, cfg: &Config) -> Result<String> {
-    // Translate AST to HIR
-    let translator = Translator::new(cfg.format_descriptions, cfg.skip_helpers);
-    let hir = translator.translate(ast)?;
-
-    // Emit Rust code from HIR
-    let emitter = Emitter::new(cfg.format_descriptions);
-    let code = emitter.emit(&hir);
-
-    Ok(code)
+    let generator = Generator::new(cfg);
+    generator.generate(ast)
 }

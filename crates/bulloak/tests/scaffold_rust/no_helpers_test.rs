@@ -2,22 +2,16 @@
 
 /// Context for test conditions
 #[derive(Default)]
-struct TestContext {
-    // Add fields as needed
-}
-
+struct TestContext {}
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_should_return_true_for_valid_input() {
         // It should return true for valid input.
     }
-
     #[test]
     fn test_should_return_false_for_invalid_input() {
         // It should return false for invalid input.
     }
-
 }

@@ -1,7 +1,18 @@
 //! `bulloak`'s CLI config.
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use figment::{providers::Serialized, Figment};
 use serde::{Deserialize, Serialize};
+
+/// The target backend/language for code generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Backend {
+    /// Solidity (Foundry) backend.
+    #[default]
+    Solidity,
+    /// Rust backend.
+    Rust,
+}
 
 /// `bulloak`'s configuration.
 #[derive(Parser, Debug, Clone, Default, Serialize, Deserialize)]

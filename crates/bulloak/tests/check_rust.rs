@@ -14,7 +14,7 @@ fn check_rust_passes_when_correct() {
     let tree_name = "basic.tree";
 
     let tree_path = tests_path.join(tree_name);
-    let output = cmd(&binary_path, "check", &tree_path, &["--rust"]);
+    let output = cmd(&binary_path, "check", &tree_path, &["--backend", "rust"]);
 
     // Should pass with no violations
     assert!(output.status.success());
@@ -37,7 +37,7 @@ fn check_rust_fails_when_missing_file() {
     )
     .unwrap();
 
-    let output = cmd(&binary_path, "check", &temp_tree, &["--rust"]);
+    let output = cmd(&binary_path, "check", &temp_tree, &["--backend", "rust"]);
 
     // Should fail
     assert!(!output.status.success());
@@ -85,7 +85,7 @@ mod tests {
     )
     .unwrap();
 
-    let output = cmd(&binary_path, "check", &temp_tree, &["--rust"]);
+    let output = cmd(&binary_path, "check", &temp_tree, &["--backend", "rust"]);
 
     // Should fail
     assert!(!output.status.success());

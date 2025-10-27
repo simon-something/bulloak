@@ -18,7 +18,7 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
-use crate::{cli::Cli, glob::expand_glob};
+use crate::{cli::{Backend, Cli}, glob::expand_glob};
 
 /// Check that the tests match the spec.
 #[doc(hidden)]
@@ -41,9 +41,9 @@ pub struct Check {
     /// Whether to capitalize and punctuate branch descriptions.
     #[arg(long = "format-descriptions", default_value_t = false)]
     pub format_descriptions: bool,
-    /// Check Rust tests instead of Solidity tests.
-    #[arg(short = 'r', long = "rust", default_value_t = false)]
-    pub rust: bool,
+    /// The target backend/language for checking.
+    #[arg(short = 'b', long = "backend", value_enum, default_value_t = Backend::Solidity)]
+    pub backend: Backend,
 }
 
 impl Default for Check {
@@ -57,8 +57,9 @@ impl Check {
     ///
     /// Note that we don't deal with `solang_parser` errors at all.
     pub(crate) fn run(&self, cfg: &Cli) {
-        if self.rust {
-            return self.run_rust_check();
+        match self.backend {
+            Backend::Rust => return self.run_rust_check(),
+            Backend::Solidity => {} // Continue with Solidity check below
         }
 
         let mut specs = Vec::new();

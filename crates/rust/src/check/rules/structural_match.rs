@@ -3,12 +3,24 @@
 use crate::{
     check::violation::{Violation, ViolationKind},
     config::Config,
-    hir::Translator,
     rust::ParsedRustFile,
+    scaffold::Generator,
+    utils::to_snake_case,
 };
 use anyhow::Result;
 use bulloak_syntax::Ast;
 use std::collections::HashSet;
+
+/// Expected test structure extracted from AST.
+struct ExpectedTests {
+    helpers: HashSet<String>,
+    test_functions: Vec<TestInfo>,
+}
+
+struct TestInfo {
+    name: String,
+    should_panic: bool,
+}
 
 /// Check that the Rust file structurally matches the spec.
 ///
@@ -44,27 +56,8 @@ pub fn check_structural_match(
         return Ok(violations);
     }
 
-    // Generate expected HIR from AST
-    let translator = Translator::new(cfg.format_descriptions, cfg.skip_helpers);
-    let hir = translator.translate(ast)?;
-
-    // Extract expected test functions from HIR
-    let mut expected_tests = Vec::new();
-    let mut expected_helpers = HashSet::new();
-
-    if let crate::hir::Hir::Root(root) = &hir {
-        for child in &root.children {
-            if let crate::hir::Hir::Helper(helper) = child {
-                expected_helpers.insert(helper.name.clone());
-            } else if let crate::hir::Hir::TestModule(module) = child {
-                for test_child in &module.children {
-                    if let crate::hir::Hir::TestFunction(func) = test_child {
-                        expected_tests.push(func.clone());
-                    }
-                }
-            }
-        }
-    }
+    // Extract expected structure from AST
+    let expected = extract_expected_structure(ast, cfg)?;
 
     // Check helpers (if not skipped)
     if !cfg.skip_helpers {
@@ -74,7 +67,7 @@ pub fn check_structural_match(
             .map(|f| f.sig.ident.to_string())
             .collect();
 
-        for expected_helper in &expected_helpers {
+        for expected_helper in &expected.helpers {
             if !found_helpers.contains(expected_helper) {
                 violations.push(Violation::new(
                     ViolationKind::HelperFunctionMissing(expected_helper.clone()),
@@ -89,7 +82,7 @@ pub fn check_structural_match(
     let found_test_names: HashSet<String> =
         found_tests.iter().map(|f| f.sig.ident.to_string()).collect();
 
-    for expected_test in &expected_tests {
+    for expected_test in &expected.test_functions {
         if !found_test_names.contains(&expected_test.name) {
             violations.push(Violation::new(
                 ViolationKind::TestFunctionMissing(expected_test.name.clone()),
@@ -99,16 +92,12 @@ pub fn check_structural_match(
             // Check attributes
             let found_fn = found_tests
                 .iter()
-                .find(|f| f.sig.ident == expected_test.name)
+                .find(|f| f.sig.ident.to_string() == expected_test.name)
                 .unwrap();
 
             let has_should_panic = ParsedRustFile::has_should_panic(found_fn);
-            let expects_should_panic = expected_test
-                .attributes
-                .iter()
-                .any(|a| matches!(a, crate::hir::Attribute::ShouldPanic));
 
-            if expects_should_panic && !has_should_panic {
+            if expected_test.should_panic && !has_should_panic {
                 violations.push(Violation::new(
                     ViolationKind::TestAttributeIncorrect {
                         function: expected_test.name.clone(),
@@ -121,28 +110,85 @@ pub fn check_structural_match(
         }
     }
 
-    // Check order
-    let expected_order: Vec<&str> = expected_tests.iter().map(|t| t.name.as_str()).collect();
-    let found_order: Vec<&str> = found_tests
-        .iter()
-        .map(|f| f.sig.ident.to_string())
-        .map(|s| Box::leak(s.into_boxed_str()) as &str)
-        .collect();
-
-    // Check if the order matches (found may have extra tests, but expected ones should be in order)
-    let mut expected_idx = 0;
-    for found_name in &found_order {
-        if expected_idx < expected_order.len() && *found_name == expected_order[expected_idx] {
-            expected_idx += 1;
-        }
-    }
-
-    if expected_idx != expected_order.len() {
-        violations.push(Violation::new(
-            ViolationKind::TestOrderIncorrect,
-            file_path.to_string(),
-        ));
-    }
-
     Ok(violations)
 }
+
+/// Extract expected test structure from AST.
+fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> {
+    let generator = Generator::new(cfg);
+
+    let ast_root = match ast {
+        Ast::Root(r) => r,
+        _ => anyhow::bail!("Expected Root node"),
+    };
+
+    let mut helpers = HashSet::new();
+    let mut test_functions = Vec::new();
+
+    // Collect helpers
+    if !cfg.skip_helpers {
+        collect_helpers_recursive(&ast_root.children, &mut helpers, &generator);
+    }
+
+    // Collect test functions
+    collect_tests_recursive(&ast_root.children, &[], &mut test_functions, &generator);
+
+    Ok(ExpectedTests {
+        helpers,
+        test_functions,
+    })
+}
+
+/// Recursively collect helper function names.
+fn collect_helpers_recursive(
+    children: &[Ast],
+    helpers: &mut HashSet<String>,
+    generator: &Generator,
+) {
+    for child in children {
+        if let Ast::Condition(condition) = child {
+            let name = to_snake_case(&condition.title);
+            helpers.insert(name);
+            collect_helpers_recursive(&condition.children, helpers, generator);
+        }
+    }
+}
+
+/// Recursively collect test function info.
+fn collect_tests_recursive(
+    children: &[Ast],
+    parent_helpers: &[String],
+    tests: &mut Vec<TestInfo>,
+    generator: &Generator,
+) {
+    for child in children {
+        match child {
+            Ast::Condition(condition) => {
+                let helper_name = to_snake_case(&condition.title);
+                let mut new_helpers = parent_helpers.to_vec();
+                new_helpers.push(helper_name);
+                collect_tests_recursive(&condition.children, &new_helpers, tests, generator);
+            }
+            Ast::Action(action) => {
+                let action_part = to_snake_case(&action.title);
+                let test_name = if parent_helpers.is_empty() {
+                    format!("test_{}", action_part)
+                } else {
+                    let last_helper = &parent_helpers[parent_helpers.len() - 1];
+                    format!("test_{}_{}", last_helper, action_part)
+                };
+
+                let should_panic = action.title.to_lowercase()
+                    .split_whitespace()
+                    .any(|w| matches!(w, "panic" | "panics" | "revert" | "reverts" | "error" | "errors" | "fail" | "fails"));
+
+                tests.push(TestInfo {
+                    name: test_name,
+                    should_panic,
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
