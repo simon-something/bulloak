@@ -77,27 +77,29 @@ impl Generator {
         self.collect_test_comments(children, &[], &mut test_comments);
 
         let mut result = formatted;
-        for (test_name, comment) in test_comments {
-            // Find the test function and add the comment
+        for (test_name, comments) in test_comments {
+            // Find the test function and add the comments
             let pattern = format!("fn {}() {{", test_name);
             if let Some(pos) = result.find(&pattern) {
                 let closing_brace_pos = pos + pattern.len();
                 // Check if it's an empty body (just whitespace before })
                 if let Some(next_brace) = result[closing_brace_pos..].find('}') {
                     let body = &result[closing_brace_pos..closing_brace_pos + next_brace];
-                    // Only add comment if body is empty or just contains helper setup
+                    // Only add comments if body is empty or just contains helper setup
                     if body.trim().is_empty() {
-                        // Empty body - just add comment with proper indentation
-                        let comment_str = format!("\n        {}\n    ", comment);
+                        // Empty body - just add comments with proper indentation
+                        let all_comments = comments.join("\n        ");
+                        let comment_str = format!("\n        {}\n    ", all_comments);
                         let insertion_pos = closing_brace_pos + next_brace;
                         result.insert_str(insertion_pos, &comment_str);
                     } else if !body.contains("//") && body.contains("let _ctx") {
-                        // Has helper call - add comment after it by replacing trailing whitespace
+                        // Has helper call - add comments after it
+                        let all_comments = comments.join("\n        ");
                         let trimmed_body = body.trim_end();
                         let chars_to_remove = body.len() - trimmed_body.len();
                         result.replace_range(
                             closing_brace_pos + next_brace - chars_to_remove..closing_brace_pos + next_brace,
-                            &format!("\n        {}\n    ", comment)
+                            &format!("\n        {}\n    ", all_comments)
                         );
                     }
                 }
@@ -107,12 +109,12 @@ impl Generator {
         result
     }
 
-    /// Collect test function names and their comments.
+    /// Collect test function names and their comments (grouped by test function).
     fn collect_test_comments(
         &self,
         children: &[Ast],
         parent_helpers: &[String],
-        comments: &mut Vec<(String, String)>,
+        comments: &mut Vec<(String, Vec<String>)>,
     ) {
         for child in children {
             match child {
@@ -120,12 +122,35 @@ impl Generator {
                     let helper_name = to_snake_case(&condition.title);
                     let mut new_helpers = parent_helpers.to_vec();
                     new_helpers.push(helper_name);
+
+                    // Collect all action comments under this condition
+                    let action_comments: Vec<String> = condition.children.iter()
+                        .filter_map(|c| if let Ast::Action(a) = c { Some(a) } else { None })
+                        .map(|action| format!("// {}", self.format_comment(&action.title)))
+                        .collect();
+
+                    if !action_comments.is_empty() {
+                        let test_name = if new_helpers.is_empty() {
+                            let action_part = to_snake_case(&condition.title);
+                            format!("test_{}", action_part)
+                        } else {
+                            let last_helper = &new_helpers[new_helpers.len() - 1];
+                            format!("test_when_{}", last_helper)
+                        };
+                        comments.push((test_name, action_comments));
+                    }
+
+                    // Process nested conditions
                     self.collect_test_comments(&condition.children, &new_helpers, comments);
                 }
                 Ast::Action(action) => {
-                    let test_name = self.action_to_test_name(action, parent_helpers);
-                    let comment = format!("// {}", self.format_comment(&action.title));
-                    comments.push((test_name, comment));
+                    // Root-level action (no condition)
+                    if parent_helpers.is_empty() {
+                        let action_part = to_snake_case(&action.title);
+                        let test_name = format!("test_{}", action_part);
+                        let comment = format!("// {}", self.format_comment(&action.title));
+                        comments.push((test_name, vec![comment]));
+                    }
                 }
                 _ => {}
             }
@@ -223,10 +248,34 @@ impl Generator {
                     let helper_name = to_snake_case(&condition.title);
                     let mut new_helpers = parent_helpers.to_vec();
                     new_helpers.push(helper_name);
-                    test_fns.extend(self.process_children(&condition.children, &new_helpers)?);
+
+                    // Collect all direct action children of this condition
+                    let actions: Vec<&Action> = condition.children.iter()
+                        .filter_map(|c| if let Ast::Action(a) = c { Some(a) } else { None })
+                        .collect();
+
+                    if !actions.is_empty() {
+                        // Generate a single test function for all actions under this condition
+                        test_fns.push(self.generate_test_function_for_condition(&actions, &new_helpers)?);
+                    }
+
+                    // Process only nested conditions (not actions, as they were already processed above)
+                    let nested_conditions: Vec<&Ast> = condition.children.iter()
+                        .filter(|c| !matches!(c, Ast::Action(_)))
+                        .collect();
+
+                    for nested_child in nested_conditions {
+                        if let Ast::Condition(nested_cond) = nested_child {
+                            let nested_helper_name = to_snake_case(&nested_cond.title);
+                            let mut nested_helpers = new_helpers.clone();
+                            nested_helpers.push(nested_helper_name);
+                            test_fns.extend(self.process_children(&nested_cond.children, &nested_helpers)?);
+                        }
+                    }
                 }
                 Ast::Action(action) => {
-                    test_fns.push(self.generate_test_function(action, parent_helpers)?);
+                    // Action at root level (no condition)
+                    test_fns.push(self.generate_test_function(&[action], parent_helpers)?);
                 }
                 _ => {}
             }
@@ -235,21 +284,47 @@ impl Generator {
         Ok(test_fns)
     }
 
-    /// Generate a test function from an action.
-    fn generate_test_function(
+    /// Generate a test function for a condition with multiple actions.
+    fn generate_test_function_for_condition(
         &self,
-        action: &Action,
+        actions: &[&Action],
         helpers: &[String],
     ) -> anyhow::Result<TokenStream> {
-        let test_name = self.action_to_test_name(action, helpers);
-        let test_fn_name = format_ident!("{}", test_name);
-        let should_panic = self.should_panic(&action.title);
+        self.generate_test_function(actions, helpers)
+    }
 
-        // Collect comments as strings for the body
-        let mut comment_lines = vec![format!("// {}", self.format_comment(&action.title))];
-        for desc_ast in &action.children {
-            if let Ast::ActionDescription(desc) = desc_ast {
-                comment_lines.push(format!("// {}", self.format_comment(&desc.text)));
+    /// Generate a test function from one or more actions.
+    fn generate_test_function(
+        &self,
+        actions: &[&Action],
+        helpers: &[String],
+    ) -> anyhow::Result<TokenStream> {
+        if actions.is_empty() {
+            anyhow::bail!("Cannot generate test function with no actions");
+        }
+
+        // Use the last helper (condition) for the test name if helpers exist
+        let test_name = if helpers.is_empty() {
+            let action_part = to_snake_case(&actions[0].title);
+            format!("test_{}", action_part)
+        } else {
+            let last_helper = &helpers[helpers.len() - 1];
+            format!("test_when_{}", last_helper)
+        };
+
+        let test_fn_name = format_ident!("{}", test_name);
+
+        // Check if any action should panic
+        let should_panic = actions.iter().any(|a| self.should_panic(&a.title));
+
+        // Collect comments from all actions
+        let mut comment_lines = Vec::new();
+        for action in actions {
+            comment_lines.push(format!("// {}", self.format_comment(&action.title)));
+            for desc_ast in &action.children {
+                if let Ast::ActionDescription(desc) = desc_ast {
+                    comment_lines.push(format!("// {}", self.format_comment(&desc.text)));
+                }
             }
         }
         let body_comments = comment_lines.join("\n    ");
@@ -302,17 +377,6 @@ impl Generator {
         Ok(test_fn)
     }
 
-    /// Convert action to test name.
-    fn action_to_test_name(&self, action: &Action, helpers: &[String]) -> String {
-        let action_part = to_snake_case(&action.title);
-
-        if helpers.is_empty() {
-            format!("test_{}", action_part)
-        } else {
-            let last_helper = &helpers[helpers.len() - 1];
-            format!("test_{}_{}", last_helper, action_part)
-        }
-    }
 
 
     /// Check if action should panic.

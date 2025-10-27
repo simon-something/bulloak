@@ -16,12 +16,12 @@ mod tests {
     use super::*;
     #[test]
     #[should_panic]
-    fn test_divisor_is_zero_should_panic_with_division_by_zero() {
+    fn test_when_divisor_is_zero() {
         let _ctx = divisor_is_zero(TestContext::default());
         // It should panic with division by zero.
     }
     #[test]
-    fn test_divisor_is_nonzero_should_return_the_quotient() {
+    fn test_when_divisor_is_nonzero() {
         let _ctx = divisor_is_nonzero(TestContext::default());
         // It should return the quotient.
     }

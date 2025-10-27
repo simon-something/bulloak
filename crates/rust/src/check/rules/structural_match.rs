@@ -167,25 +167,53 @@ fn collect_tests_recursive(
                 let helper_name = to_snake_case(&condition.title);
                 let mut new_helpers = parent_helpers.to_vec();
                 new_helpers.push(helper_name);
+
+                // Collect all direct action children of this condition
+                let actions: Vec<&bulloak_syntax::Action> = condition.children.iter()
+                    .filter_map(|c| if let Ast::Action(a) = c { Some(a) } else { None })
+                    .collect();
+
+                if !actions.is_empty() {
+                    // Generate a single test for all actions under this condition
+                    let test_name = if new_helpers.is_empty() {
+                        let action_part = to_snake_case(&actions[0].title);
+                        format!("test_{}", action_part)
+                    } else {
+                        let last_helper = &new_helpers[new_helpers.len() - 1];
+                        format!("test_when_{}", last_helper)
+                    };
+
+                    // Check if any action should panic
+                    let should_panic = actions.iter().any(|action| {
+                        action.title.to_lowercase()
+                            .split_whitespace()
+                            .any(|w| matches!(w, "panic" | "panics" | "revert" | "reverts" | "error" | "errors" | "fail" | "fails"))
+                    });
+
+                    tests.push(TestInfo {
+                        name: test_name,
+                        should_panic,
+                    });
+                }
+
+                // Process nested conditions
                 collect_tests_recursive(&condition.children, &new_helpers, tests, generator);
             }
             Ast::Action(action) => {
-                let action_part = to_snake_case(&action.title);
-                let test_name = if parent_helpers.is_empty() {
-                    format!("test_{}", action_part)
-                } else {
-                    let last_helper = &parent_helpers[parent_helpers.len() - 1];
-                    format!("test_{}_{}", last_helper, action_part)
-                };
+                // Root-level action (no condition)
+                if parent_helpers.is_empty() {
+                    let action_part = to_snake_case(&action.title);
+                    let test_name = format!("test_{}", action_part);
 
-                let should_panic = action.title.to_lowercase()
-                    .split_whitespace()
-                    .any(|w| matches!(w, "panic" | "panics" | "revert" | "reverts" | "error" | "errors" | "fail" | "fails"));
+                    let should_panic = action.title.to_lowercase()
+                        .split_whitespace()
+                        .any(|w| matches!(w, "panic" | "panics" | "revert" | "reverts" | "error" | "errors" | "fail" | "fails"));
 
-                tests.push(TestInfo {
-                    name: test_name,
-                    should_panic,
-                });
+                    tests.push(TestInfo {
+                        name: test_name,
+                        should_panic,
+                    });
+                }
             }
             _ => {}
         }

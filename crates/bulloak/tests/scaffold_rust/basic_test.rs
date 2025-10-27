@@ -15,17 +15,16 @@ fn first_arg_is_bigger_than_second_arg(mut ctx: TestContext) -> TestContext {
 mod tests {
     use super::*;
     #[test]
-    #[should_panic]
-    fn test_should_never_panic() {
-        // It should never panic.
+    fn test_should_always_work() {
+        // It should always work.
     }
     #[test]
-    fn test_first_arg_is_smaller_than_second_arg_should_match_the_result_of_hashab() {
+    fn test_when_first_arg_is_smaller_than_second_arg() {
         let _ctx = first_arg_is_smaller_than_second_arg(TestContext::default());
         // It should match the result of hash(a, b).
     }
     #[test]
-    fn test_first_arg_is_bigger_than_second_arg_should_match_the_result_of_hashba() {
+    fn test_when_first_arg_is_bigger_than_second_arg() {
         let _ctx = first_arg_is_bigger_than_second_arg(TestContext::default());
         // It should match the result of hash(b, a).
     }

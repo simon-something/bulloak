@@ -12,7 +12,14 @@ fn scaffolds_rust_trees() {
     let cwd = env::current_dir().unwrap();
     let binary_path = get_binary_path();
     let tests_path = cwd.join("tests").join("scaffold_rust");
-    let trees = ["basic.tree", "with_panic.tree", "no_helpers.tree"];
+    let trees = [
+        "basic.tree",
+        "with_panic.tree",
+        "no_helpers.tree",
+        "nested.tree",
+        "deeply_nested.tree",
+        "multiple_actions.tree",
+    ];
 
     for tree_name in trees {
         let tree_path = tests_path.join(tree_name);

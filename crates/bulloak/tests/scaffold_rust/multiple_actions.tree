@@ -1,0 +1,8 @@
+process_payment
+├── it should validate input
+├── it should check balance
+└── when balance sufficient
+    ├── it should deduct amount
+    ├── it should update ledger
+    ├── it should emit event
+    └── it should return receipt
