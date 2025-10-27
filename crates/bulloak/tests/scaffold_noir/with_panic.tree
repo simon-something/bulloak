@@ -1,0 +1,5 @@
+divide
+├── When divisor is zero
+│   └── It should panic with division by zero.
+└── When divisor is non-zero
+    └── It should return the quotient.

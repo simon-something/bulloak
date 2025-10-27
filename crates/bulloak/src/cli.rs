@@ -12,6 +12,8 @@ pub enum Backend {
     Solidity,
     /// Rust backend.
     Rust,
+    /// Noir backend.
+    Noir,
 }
 
 /// `bulloak`'s configuration.
@@ -56,6 +58,23 @@ impl From<&Cli> for bulloak_foundry::config::Config {
                 skip_modifiers: cmd.skip_modifiers,
                 format_descriptions: cmd.format_descriptions,
                 ..Self::default()
+            },
+        }
+    }
+}
+
+impl From<&Cli> for bulloak_noir::Config {
+    fn from(cli: &Cli) -> Self {
+        match &cli.command {
+            Commands::Scaffold(cmd) => Self {
+                files: cmd.files.iter().map(|p| p.display().to_string()).collect(),
+                skip_helpers: cmd.skip_modifiers,
+                format_descriptions: cmd.format_descriptions,
+            },
+            Commands::Check(cmd) => Self {
+                files: cmd.files.iter().map(|p| p.display().to_string()).collect(),
+                skip_helpers: cmd.skip_modifiers,
+                format_descriptions: cmd.format_descriptions,
             },
         }
     }

@@ -130,6 +130,22 @@ impl Scaffold {
                     println!("{emitted}");
                 }
             }
+            Backend::Noir => {
+                let ast = bulloak_syntax::parse_one(&text)?;
+                let noir_cfg: bulloak_noir::Config = cfg.into();
+                let emitted = bulloak_noir::scaffold(&ast, &noir_cfg)?;
+
+                if self.write_files {
+                    let file_stem = file
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .ok_or_else(|| anyhow::anyhow!("Invalid file name: {}", file.display()))?;
+                    let output_file = file.with_file_name(format!("{}_test.nr", file_stem));
+                    self.write_file(&emitted, &output_file);
+                } else {
+                    println!("{emitted}");
+                }
+            }
             Backend::Solidity => {
                 let emitted = scaffold(&text, &cfg.into())?;
                 let formatted = fmt(&emitted).unwrap_or_else(|err| {

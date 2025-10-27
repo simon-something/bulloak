@@ -61,6 +61,10 @@ impl Check {
             return self.run_rust_check();
         }
 
+        if self.backend == Backend::Noir {
+            return self.run_noir_check();
+        }
+
         // Solidity check
         let mut specs = Vec::new();
         for pattern in &self.files {
@@ -196,6 +200,64 @@ impl Check {
         let mut all_violations = Vec::new();
         for tree_path in specs {
             match bulloak_rust::check::check(&tree_path, &rust_cfg) {
+                Ok(violations) => {
+                    for violation in &violations {
+                        eprintln!("{}", violation);
+                    }
+                    all_violations.extend(violations);
+                }
+                Err(e) => {
+                    eprintln!(
+                        "{}: Failed to check {}: {}",
+                        "error".red(),
+                        tree_path.display(),
+                        e
+                    );
+                }
+            }
+        }
+
+        if all_violations.is_empty() {
+            println!(
+                "{}",
+                "All checks completed successfully! No issues found.".green()
+            );
+        } else {
+            let check_literal = pluralize(all_violations.len(), "check", "checks");
+            eprintln!(
+                "\n{}: {} {} failed",
+                "warn".bold().yellow(),
+                all_violations.len(),
+                check_literal
+            );
+            std::process::exit(1);
+        }
+    }
+
+    /// Run check for Noir tests.
+    fn run_noir_check(&self) {
+        let mut specs = Vec::new();
+        for pattern in &self.files {
+            match expand_glob(pattern.clone()) {
+                Ok(iter) => specs.extend(iter),
+                Err(e) => eprintln!(
+                    "{}: could not expand {}: {}",
+                    "warn".yellow(),
+                    pattern.display(),
+                    e
+                ),
+            }
+        }
+
+        let noir_cfg = bulloak_noir::Config {
+            files: self.files.iter().map(|p| p.display().to_string()).collect(),
+            skip_helpers: self.skip_modifiers,
+            format_descriptions: self.format_descriptions,
+        };
+
+        let mut all_violations = Vec::new();
+        for tree_path in specs {
+            match bulloak_noir::check::check(&tree_path, &noir_cfg) {
                 Ok(violations) => {
                     for violation in &violations {
                         eprintln!("{}", violation);
