@@ -53,6 +53,9 @@ pub struct Scaffold {
     /// Whether to capitalize and punctuate branch descriptions.
     #[arg(short = 'F', long = "format-descriptions", default_value_t = false)]
     pub format_descriptions: bool,
+    /// Generate Rust tests instead of Solidity tests.
+    #[arg(short = 'r', long = "rust", default_value_t = false)]
+    pub rust: bool,
 }
 
 impl Default for Scaffold {
@@ -101,21 +104,44 @@ impl Scaffold {
 
     /// Processes a single input file.
     ///
-    /// This method reads the input file, scaffolds the Solidity code, formats
+    /// This method reads the input file, scaffolds the Solidity/Rust code, formats
     /// it, and either writes it to a file or prints it to stdout.
     fn process_file(&self, file: &Path, cfg: &Cli) -> anyhow::Result<()> {
         let text = fs::read_to_string(file)?;
-        let emitted = scaffold(&text, &cfg.into())?;
-        let formatted = fmt(&emitted).unwrap_or_else(|err| {
-            eprintln!("{}: {}", "WARN".yellow(), err);
-            emitted
-        });
 
-        if self.write_files {
-            let file = file.with_extension("t.sol");
-            self.write_file(&formatted, &file);
+        if self.rust {
+            // Rust backend
+            let ast = bulloak_syntax::parse_one(&text)?;
+            let rust_cfg = bulloak_rust::Config {
+                files: self.files.iter().map(|p| p.display().to_string()).collect(),
+                skip_helpers: self.skip_modifiers,
+                format_descriptions: self.format_descriptions,
+            };
+            let emitted = bulloak_rust::scaffold(&ast, &rust_cfg)?;
+
+            if self.write_files {
+                let output_file = file.with_file_name(format!(
+                    "{}_test.rs",
+                    file.file_stem().unwrap().to_str().unwrap()
+                ));
+                self.write_file(&emitted, &output_file);
+            } else {
+                println!("{emitted}");
+            }
         } else {
-            println!("{formatted}");
+            // Solidity backend (original)
+            let emitted = scaffold(&text, &cfg.into())?;
+            let formatted = fmt(&emitted).unwrap_or_else(|err| {
+                eprintln!("{}: {}", "WARN".yellow(), err);
+                emitted
+            });
+
+            if self.write_files {
+                let file = file.with_extension("t.sol");
+                self.write_file(&formatted, &file);
+            } else {
+                println!("{formatted}");
+            }
         }
 
         Ok(())

@@ -41,6 +41,9 @@ pub struct Check {
     /// Whether to capitalize and punctuate branch descriptions.
     #[arg(long = "format-descriptions", default_value_t = false)]
     pub format_descriptions: bool,
+    /// Check Rust tests instead of Solidity tests.
+    #[arg(short = 'r', long = "rust", default_value_t = false)]
+    pub rust: bool,
 }
 
 impl Default for Check {
@@ -54,6 +57,10 @@ impl Check {
     ///
     /// Note that we don't deal with `solang_parser` errors at all.
     pub(crate) fn run(&self, cfg: &Cli) {
+        if self.rust {
+            return self.run_rust_check();
+        }
+
         let mut specs = Vec::new();
         for pattern in &self.files {
             match expand_glob(pattern.clone()) {
@@ -161,6 +168,64 @@ impl Check {
             println!("{}", "<--".blue());
         } else if let Err(e) = fs::write(sol, output) {
             eprintln!("{}: {e}", "warn".yellow());
+        }
+    }
+
+    /// Run check for Rust tests.
+    fn run_rust_check(&self) {
+        let mut specs = Vec::new();
+        for pattern in &self.files {
+            match expand_glob(pattern.clone()) {
+                Ok(iter) => specs.extend(iter),
+                Err(e) => eprintln!(
+                    "{}: could not expand {}: {}",
+                    "warn".yellow(),
+                    pattern.display(),
+                    e
+                ),
+            }
+        }
+
+        let rust_cfg = bulloak_rust::Config {
+            files: self.files.iter().map(|p| p.display().to_string()).collect(),
+            skip_helpers: self.skip_modifiers,
+            format_descriptions: self.format_descriptions,
+        };
+
+        let mut all_violations = Vec::new();
+        for tree_path in specs {
+            match bulloak_rust::check::check(&tree_path, &rust_cfg) {
+                Ok(violations) => {
+                    for violation in &violations {
+                        eprintln!("{}", violation);
+                    }
+                    all_violations.extend(violations);
+                }
+                Err(e) => {
+                    eprintln!(
+                        "{}: Failed to check {}: {}",
+                        "error".red(),
+                        tree_path.display(),
+                        e
+                    );
+                }
+            }
+        }
+
+        if all_violations.is_empty() {
+            println!(
+                "{}",
+                "All checks completed successfully! No issues found.".green()
+            );
+        } else {
+            let check_literal = pluralize(all_violations.len(), "check", "checks");
+            eprintln!(
+                "\n{}: {} {} failed",
+                "warn".bold().yellow(),
+                all_violations.len(),
+                check_literal
+            );
+            std::process::exit(1);
         }
     }
 }
