@@ -24,7 +24,7 @@ fn test_scaffold_noir_basic() {
     let tests_path = tests_path();
     let tree_path = tests_path.join("basic.tree");
 
-    let output = cmd(&binary_path, "scaffold", &tree_path, &["--backend", "noir"]);
+    let output = cmd(&binary_path, "scaffold", &tree_path, &["--lang", "noir"]);
     let actual = String::from_utf8(output.stdout).unwrap();
 
     let expected = fs::read_to_string(tests_path.join("basic_test.nr")).unwrap();
@@ -38,7 +38,7 @@ fn test_scaffold_noir_with_panic() {
     let tests_path = tests_path();
     let tree_path = tests_path.join("with_panic.tree");
 
-    let output = cmd(&binary_path, "scaffold", &tree_path, &["--backend", "noir"]);
+    let output = cmd(&binary_path, "scaffold", &tree_path, &["--lang", "noir"]);
     let actual = String::from_utf8(output.stdout).unwrap();
 
     let expected = fs::read_to_string(tests_path.join("with_panic_test.nr")).unwrap();
@@ -52,7 +52,7 @@ fn test_scaffold_noir_no_helpers() {
     let tests_path = tests_path();
     let tree_path = tests_path.join("no_helpers.tree");
 
-    let output = cmd(&binary_path, "scaffold", &tree_path, &["--backend", "noir"]);
+    let output = cmd(&binary_path, "scaffold", &tree_path, &["--lang", "noir"]);
     let actual = String::from_utf8(output.stdout).unwrap();
 
     let expected = fs::read_to_string(tests_path.join("no_helpers_test.nr")).unwrap();
@@ -66,7 +66,7 @@ fn test_scaffold_noir_nested() {
     let tests_path = tests_path();
     let tree_path = tests_path.join("nested.tree");
 
-    let output = cmd(&binary_path, "scaffold", &tree_path, &["--backend", "noir"]);
+    let output = cmd(&binary_path, "scaffold", &tree_path, &["--lang", "noir"]);
     let actual = String::from_utf8(output.stdout).unwrap();
 
     let expected = fs::read_to_string(tests_path.join("nested_test.nr")).unwrap();

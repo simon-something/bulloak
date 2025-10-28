@@ -53,8 +53,8 @@ pub struct Scaffold {
     /// Whether to capitalize and punctuate branch descriptions.
     #[arg(short = 'F', long = "format-descriptions", default_value_t = false)]
     pub format_descriptions: bool,
-    /// The target backend/language for code generation.
-    #[arg(short = 'b', long = "backend", value_enum, default_value_t = Backend::Solidity)]
+    /// The target language for code generation.
+    #[arg(short = 'l', long = "lang", value_enum, default_value_t = Backend::Solidity)]
     pub backend: Backend,
 }
 
