@@ -109,7 +109,7 @@ impl Scaffold {
     fn process_file(&self, file: &Path, cfg: &Cli) -> anyhow::Result<()> {
         let text = fs::read_to_string(file)?;
 
-        match self.backend {
+        let (emitted, output_file) = match self.backend {
             Backend::Rust => {
                 let ast = bulloak_syntax::parse_one(&text)?;
                 let rust_cfg = bulloak_rust::Config {
@@ -118,33 +118,15 @@ impl Scaffold {
                     format_descriptions: self.format_descriptions,
                 };
                 let emitted = bulloak_rust::scaffold(&ast, &rust_cfg)?;
-
-                if self.write_files {
-                    let file_stem = file
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .ok_or_else(|| anyhow::anyhow!("Invalid file name: {}", file.display()))?;
-                    let output_file = file.with_file_name(format!("{}_test.rs", file_stem));
-                    self.write_file(&emitted, &output_file);
-                } else {
-                    println!("{emitted}");
-                }
+                let output_file = Self::build_output_path(file, "_test.rs")?;
+                (emitted, output_file)
             }
             Backend::Noir => {
                 let ast = bulloak_syntax::parse_one(&text)?;
                 let noir_cfg: bulloak_noir::Config = cfg.into();
                 let emitted = bulloak_noir::scaffold(&ast, &noir_cfg)?;
-
-                if self.write_files {
-                    let file_stem = file
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .ok_or_else(|| anyhow::anyhow!("Invalid file name: {}", file.display()))?;
-                    let output_file = file.with_file_name(format!("{}_test.nr", file_stem));
-                    self.write_file(&emitted, &output_file);
-                } else {
-                    println!("{emitted}");
-                }
+                let output_file = Self::build_output_path(file, "_test.nr")?;
+                (emitted, output_file)
             }
             Backend::Solidity => {
                 let emitted = scaffold(&text, &cfg.into())?;
@@ -152,17 +134,31 @@ impl Scaffold {
                     eprintln!("{}: {}", "WARN".yellow(), err);
                     emitted
                 });
-
-                if self.write_files {
-                    let file = file.with_extension("t.sol");
-                    self.write_file(&formatted, &file);
-                } else {
-                    println!("{formatted}");
-                }
+                let output_file = file.with_extension("t.sol");
+                (formatted, output_file)
             }
-        }
+        };
 
+        self.output(&emitted, &output_file);
         Ok(())
+    }
+
+    /// Builds the output file path for a given input file.
+    fn build_output_path(file: &Path, suffix: &str) -> anyhow::Result<PathBuf> {
+        let file_stem = file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid file name: {}", file.display()))?;
+        Ok(file.with_file_name(format!("{file_stem}{suffix}")))
+    }
+
+    /// Outputs the scaffolded text either to stdout or to a file.
+    fn output(&self, text: &str, file: &PathBuf) {
+        if self.write_files {
+            self.write_file(text, file);
+        } else {
+            println!("{text}");
+        }
     }
 
     /// Writes the provided `text` to `file`.
