@@ -50,3 +50,20 @@ fn test_panics() {
     println!("\n=== AST STRUCTURE (should_fail) ===");
     print_tree(tree.root_node(), source, 0);
 }
+
+#[test]
+fn debug_noir_unconstrained() {
+    let source = r#"
+#[test]
+unconstrained fn test_something() {
+    assert(true);
+}
+"#;
+
+    let mut parser = Parser::new();
+    parser.set_language(tree_sitter_noir::language()).unwrap();
+    let tree = parser.parse(source, None).unwrap();
+
+    println!("\n=== AST STRUCTURE (unconstrained) ===");
+    print_tree(tree.root_node(), source, 0);
+}

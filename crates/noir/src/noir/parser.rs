@@ -113,8 +113,17 @@ impl ParsedNoirFile {
                 if text.contains(attr_name) {
                     return Some(s);
                 }
+            } else if s.kind() == "identifier" {
+                // Skip "unconstrained" or other modifiers
+                let text = self.node_text(s);
+                if text == "unconstrained" || text == "pub" {
+                    sibling = s.prev_sibling();
+                    continue;
+                }
+                // Stop if we hit an identifier that's not a known modifier
+                break;
             } else if s.kind() != "comment" && s.kind() != "line_comment" {
-                // Stop if we hit something that's not a macro or comment
+                // Stop if we hit something that's not a macro, comment, or known modifier
                 break;
             }
             sibling = s.prev_sibling();
@@ -210,6 +219,30 @@ mod tests {
         assert_eq!(test_fns.len(), 1);
         assert_eq!(test_fns[0].name, "test_panics");
         assert!(test_fns[0].has_should_fail);
+    }
+
+    #[test]
+    fn test_parse_unconstrained() {
+        let source = r#"
+            #[test]
+            unconstrained fn test_something() {
+                assert(true);
+            }
+
+            #[test(should_fail)]
+            unconstrained fn test_panics() {
+                assert(false);
+            }
+        "#;
+
+        let parsed = ParsedNoirFile::parse(source).unwrap();
+        let test_fns = parsed.find_test_functions();
+
+        assert_eq!(test_fns.len(), 2);
+        assert_eq!(test_fns[0].name, "test_something");
+        assert!(!test_fns[0].has_should_fail);
+        assert_eq!(test_fns[1].name, "test_panics");
+        assert!(test_fns[1].has_should_fail);
     }
 
     #[test]
