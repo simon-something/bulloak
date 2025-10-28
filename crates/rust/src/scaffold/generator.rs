@@ -142,30 +142,17 @@ impl Generator {
                     new_helpers.push(helper_name);
 
                     // Collect all action comments under this condition
-                    let action_comments: Vec<String> = condition
-                        .children
-                        .iter()
-                        .filter_map(|c| {
-                            if let Ast::Action(a) = c {
-                                Some(a)
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|action| {
-                            format!("// {}", self.format_comment(&action.title))
-                        })
-                        .collect();
+                    let action_comments: Vec<String> =
+                        Self::collect_actions(&condition.children)
+                            .iter()
+                            .map(|action| {
+                                format!("// {}", self.format_comment(&action.title))
+                            })
+                            .collect();
 
                     if !action_comments.is_empty() {
-                        let test_name = if new_helpers.is_empty() {
-                            let action_part = to_snake_case(&condition.title);
-                            format!("test_{}", action_part)
-                        } else {
-                            let last_helper =
-                                &new_helpers[new_helpers.len() - 1];
-                            format!("test_when_{}", last_helper)
-                        };
+                        let test_name =
+                            Self::generate_test_name(&condition.title, &new_helpers);
                         comments.push((test_name, action_comments));
                     }
 
@@ -179,8 +166,8 @@ impl Generator {
                 Ast::Action(action) => {
                     // Root-level action (no condition)
                     if parent_helpers.is_empty() {
-                        let action_part = to_snake_case(&action.title);
-                        let test_name = format!("test_{}", action_part);
+                        let test_name =
+                            Self::generate_test_name(&action.title, parent_helpers);
                         let comment = format!(
                             "// {}",
                             self.format_comment(&action.title)
@@ -293,26 +280,13 @@ impl Generator {
                     new_helpers.push(helper_name);
 
                     // Collect all direct action children of this condition
-                    let actions: Vec<&Action> = condition
-                        .children
-                        .iter()
-                        .filter_map(|c| {
-                            if let Ast::Action(a) = c {
-                                Some(a)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
+                    let actions = Self::collect_actions(&condition.children);
 
                     if !actions.is_empty() {
                         // Generate a single test function for all actions under
                         // this condition
                         test_fns.push(
-                            self.generate_test_function_for_condition(
-                                &actions,
-                                &new_helpers,
-                            )?,
+                            self.generate_test_function(&actions, &new_helpers)?,
                         );
                     }
 
@@ -325,16 +299,17 @@ impl Generator {
                         .collect();
 
                     for nested_child in nested_conditions {
-                        if let Ast::Condition(nested_cond) = nested_child {
-                            let nested_helper_name =
-                                to_snake_case(&nested_cond.title);
-                            let mut nested_helpers = new_helpers.clone();
-                            nested_helpers.push(nested_helper_name);
-                            test_fns.extend(self.process_children(
-                                &nested_cond.children,
-                                &nested_helpers,
-                            )?);
-                        }
+                        let Ast::Condition(nested_cond) = nested_child else {
+                            continue;
+                        };
+
+                        let nested_helper_name = to_snake_case(&nested_cond.title);
+                        let mut nested_helpers = new_helpers.clone();
+                        nested_helpers.push(nested_helper_name);
+                        test_fns.extend(self.process_children(
+                            &nested_cond.children,
+                            &nested_helpers,
+                        )?);
                     }
                 }
                 Ast::Action(action) => {
@@ -350,15 +325,6 @@ impl Generator {
         Ok(test_fns)
     }
 
-    /// Generate a test function for a condition with multiple actions.
-    fn generate_test_function_for_condition(
-        &self,
-        actions: &[&Action],
-        helpers: &[String],
-    ) -> anyhow::Result<TokenStream> {
-        self.generate_test_function(actions, helpers)
-    }
-
     /// Generate a test function from one or more actions.
     fn generate_test_function(
         &self,
@@ -370,14 +336,7 @@ impl Generator {
         }
 
         // Use the last helper (condition) for the test name if helpers exist
-        let test_name = if helpers.is_empty() {
-            let action_part = to_snake_case(&actions[0].title);
-            format!("test_{}", action_part)
-        } else {
-            let last_helper = &helpers[helpers.len() - 1];
-            format!("test_when_{}", last_helper)
-        };
-
+        let test_name = Self::generate_test_name(&actions[0].title, helpers);
         let test_fn_name = format_ident!("{}", test_name);
 
         // Check if any action should panic
@@ -400,21 +359,7 @@ impl Generator {
         let body_comments = comment_lines.join("\n    ");
 
         // Generate helper calls
-        let helper_calls = if helpers.is_empty() {
-            String::new()
-        } else if helpers.len() == 1 {
-            format!(
-                "let _ctx = {}({}::default());",
-                &helpers[0], CONTEXT_STRUCT_NAME
-            )
-        } else {
-            // Chain multiple helpers
-            let mut chain = format!("{}::default()", CONTEXT_STRUCT_NAME);
-            for helper in helpers {
-                chain = format!("{}({})", helper, chain);
-            }
-            format!("let _ctx = {};", chain)
-        };
+        let helper_calls = Self::build_helper_chain(helpers);
 
         // Build complete function body as a string
         let body_str = if helper_calls.is_empty() {
@@ -464,11 +409,55 @@ impl Generator {
             text.to_string()
         }
     }
+
+    /// Generate test function name from action title and helpers.
+    fn generate_test_name(action_title: &str, helpers: &[String]) -> String {
+        if helpers.is_empty() {
+            format!("test_{}", to_snake_case(action_title))
+        } else {
+            format!("test_when_{}", helpers.last().unwrap())
+        }
+    }
+
+    /// Collect all direct action children from AST nodes.
+    fn collect_actions(children: &[Ast]) -> Vec<&Action> {
+        children
+            .iter()
+            .filter_map(|c| {
+                if let Ast::Action(a) = c {
+                    Some(a)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Build helper function call chain.
+    fn build_helper_chain(helpers: &[String]) -> String {
+        if helpers.is_empty() {
+            return String::new();
+        }
+
+        if helpers.len() == 1 {
+            format!(
+                "let _ctx = {}({}::default());",
+                &helpers[0], CONTEXT_STRUCT_NAME
+            )
+        } else {
+            let mut chain = format!("{}::default()", CONTEXT_STRUCT_NAME);
+            for helper in helpers {
+                chain = format!("{}({})", helper, chain);
+            }
+            format!("let _ctx = {};", chain)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bulloak_syntax::{Action, Condition};
 
     #[test]
     fn test_should_panic() {
@@ -478,5 +467,117 @@ mod tests {
         assert!(gen.should_panic("It should panic"));
         assert!(gen.should_panic("It should revert"));
         assert!(!gen.should_panic("It should return a value"));
+    }
+
+    #[test]
+    fn test_generate_test_name_without_helpers() {
+        let result = Generator::generate_test_name("It should work", &[]);
+        assert_eq!(result, "test_should_work");
+    }
+
+    #[test]
+    fn test_generate_test_name_with_one_helper() {
+        let helpers = vec!["user_is_logged_in".to_string()];
+        let result = Generator::generate_test_name("It should succeed", &helpers);
+        assert_eq!(result, "test_when_user_is_logged_in");
+    }
+
+    #[test]
+    fn test_generate_test_name_with_multiple_helpers() {
+        let helpers = vec![
+            "user_is_logged_in".to_string(),
+            "balance_is_zero".to_string(),
+        ];
+        let result = Generator::generate_test_name("It should fail", &helpers);
+        assert_eq!(result, "test_when_balance_is_zero");
+    }
+
+    #[test]
+    fn test_collect_actions_empty() {
+        let children: Vec<Ast> = vec![];
+        let actions = Generator::collect_actions(&children);
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn test_collect_actions_mixed() {
+        let children = vec![
+            Ast::Action(Action {
+                title: "action1".to_string(),
+                children: vec![],
+                span: Default::default(),
+            }),
+            Ast::Condition(Condition {
+                title: "condition1".to_string(),
+                children: vec![],
+                span: Default::default(),
+            }),
+            Ast::Action(Action {
+                title: "action2".to_string(),
+                children: vec![],
+                span: Default::default(),
+            }),
+        ];
+
+        let actions = Generator::collect_actions(&children);
+        assert_eq!(actions.len(), 2);
+        assert_eq!(actions[0].title, "action1");
+        assert_eq!(actions[1].title, "action2");
+    }
+
+    #[test]
+    fn test_collect_actions_only_conditions() {
+        let children = vec![
+            Ast::Condition(Condition {
+                title: "condition1".to_string(),
+                children: vec![],
+                span: Default::default(),
+            }),
+            Ast::Condition(Condition {
+                title: "condition2".to_string(),
+                children: vec![],
+                span: Default::default(),
+            }),
+        ];
+
+        let actions = Generator::collect_actions(&children);
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn test_build_helper_chain_empty() {
+        let result = Generator::build_helper_chain(&[]);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_build_helper_chain_single() {
+        let helpers = vec!["helper1".to_string()];
+        let result = Generator::build_helper_chain(&helpers);
+        assert_eq!(result, "let _ctx = helper1(TestContext::default());");
+    }
+
+    #[test]
+    fn test_build_helper_chain_multiple() {
+        let helpers = vec!["helper1".to_string(), "helper2".to_string()];
+        let result = Generator::build_helper_chain(&helpers);
+        assert_eq!(
+            result,
+            "let _ctx = helper2(helper1(TestContext::default()));"
+        );
+    }
+
+    #[test]
+    fn test_build_helper_chain_three() {
+        let helpers = vec![
+            "helper1".to_string(),
+            "helper2".to_string(),
+            "helper3".to_string(),
+        ];
+        let result = Generator::build_helper_chain(&helpers);
+        assert_eq!(
+            result,
+            "let _ctx = helper3(helper2(helper1(TestContext::default())));"
+        );
     }
 }
