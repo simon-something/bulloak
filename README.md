@@ -15,6 +15,7 @@ A test generator based on the
 [Branching Tree Technique](https://twitter.com/PaulRBerg/status/1682346315806539776).
 
 **Supported languages:**
+
 - **Solidity (Foundry)**: Generates `.t.sol` files with modifiers for conditions
 - **Rust**: Generates `_test.rs` files with helper functions for conditions
 - **Noir**: Generates `_test.nr` files with helper functions for conditions
@@ -107,7 +108,7 @@ Say we have a bunch of `.tree` files in the current working directory. If we run
 the following:
 
 ```text
-$ bulloak scaffold -w ./**/*.tree
+bulloak scaffold -w ./**/*.tree
 ```
 
 `bulloak` will create a `.t.sol` file per `.tree` file and write the generated
@@ -119,7 +120,7 @@ behavior with the `-f` flag. This will force `bulloak` to overwrite the contents
 of the file.
 
 ```text
-$ bulloak scaffold -wf ./**/*.tree
+bulloak scaffold -wf ./**/*.tree
 ```
 
 Note all tests are showing as passing when their body is empty. To prevent this,
@@ -144,7 +145,7 @@ get consistent sentence casing in the scaffolded test bodies.
 To generate Rust test files, use `--lang rust`:
 
 ```bash
-$ bulloak scaffold --lang rust foo.tree
+bulloak scaffold --lang rust foo.tree
 ```
 
 This will generate a `foo_test.rs` file with helper functions for conditions and `#[test]` functions for actions. The generated file will use `#[should_panic]` for actions containing panic keywords like "panic", "revert", "error", or "fail".
@@ -155,12 +156,10 @@ This will generate a `foo_test.rs` file with helper functions for conditions and
 
 /// Helper function for condition
 fn stuff_is_called() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn a_condition_is_met() {
-// TODO: Implement condition
 }
 
 #[test]
@@ -177,7 +176,7 @@ fn test_when_a_condition_is_met() {
 To generate Noir test files, use `--lang noir`:
 
 ```bash
-$ bulloak scaffold --lang noir foo.tree
+bulloak scaffold --lang noir foo.tree
 ```
 
 This will generate a `foo_test.nr` file with helper functions for conditions and `#[test]` functions for actions. The generated file will use `#[test(should_fail)]` for actions containing panic keywords.
@@ -528,6 +527,6 @@ This project has been possible thanks to the support of:
 This project is licensed under either of:
 
 - Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
-  https://www.apache.org/licenses/LICENSE-2.0).
+  <https://www.apache.org/licenses/LICENSE-2.0>).
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or
-  https://opensource.org/licenses/MIT).
+  <https://opensource.org/licenses/MIT>).
