@@ -2,22 +2,20 @@
 
 /// Helper function for condition
 fn divisor_is_nonzero() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn divisor_is_zero() {
-// TODO: Implement condition
 }
 
 #[test(should_fail)]
-fn test_when_divisor_is_zero() {
+unconstrained fn test_when_divisor_is_zero() {
     divisor_is_zero();
     // It should panic with division by zero.
 }
 
 #[test]
-fn test_when_divisor_is_nonzero() {
+unconstrained fn test_when_divisor_is_nonzero() {
     divisor_is_nonzero();
     // It should return the quotient.
 }

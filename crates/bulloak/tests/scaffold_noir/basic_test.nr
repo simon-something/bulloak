@@ -2,27 +2,25 @@
 
 /// Helper function for condition
 fn first_arg_is_bigger_than_second_arg() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn first_arg_is_smaller_than_second_arg() {
-// TODO: Implement condition
 }
 
 #[test]
-fn test_should_always_work() {
+unconstrained fn test_should_always_work() {
     // It should always work.
 }
 
 #[test]
-fn test_when_first_arg_is_smaller_than_second_arg() {
+unconstrained fn test_when_first_arg_is_smaller_than_second_arg() {
     first_arg_is_smaller_than_second_arg();
     // It should match the result of hash(a, b).
 }
 
 #[test]
-fn test_when_first_arg_is_bigger_than_second_arg() {
+unconstrained fn test_when_first_arg_is_bigger_than_second_arg() {
     first_arg_is_bigger_than_second_arg();
     // It should match the result of hash(b, a).
 }

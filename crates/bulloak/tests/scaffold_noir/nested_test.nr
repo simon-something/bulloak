@@ -2,49 +2,43 @@
 
 /// Helper function for condition
 fn amount_is_not_zero() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn amount_is_zero() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn recipient_is_different() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn recipient_is_the_sender() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn sender_has_insufficient_balance() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn sender_has_sufficient_balance() {
-// TODO: Implement condition
 }
 
 #[test(should_fail)]
-fn test_when_amount_is_zero() {
+unconstrained fn test_when_amount_is_zero() {
     amount_is_zero();
     // It should revert.
 }
 
 #[test(should_fail)]
-fn test_when_sender_has_insufficient_balance() {
+unconstrained fn test_when_sender_has_insufficient_balance() {
     amount_is_not_zero();
     sender_has_insufficient_balance();
     // It should revert.
 }
 
 #[test]
-fn test_when_recipient_is_the_sender() {
+unconstrained fn test_when_recipient_is_the_sender() {
     amount_is_not_zero();
     sender_has_sufficient_balance();
     recipient_is_the_sender();
@@ -52,7 +46,7 @@ fn test_when_recipient_is_the_sender() {
 }
 
 #[test]
-fn test_when_recipient_is_different() {
+unconstrained fn test_when_recipient_is_different() {
     amount_is_not_zero();
     sender_has_sufficient_balance();
     recipient_is_different();

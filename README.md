@@ -188,16 +188,14 @@ This will generate a `foo_test.nr` file with helper functions for conditions and
 
 /// Helper function for condition
 fn stuff_is_called() {
-// TODO: Implement condition
 }
 
 /// Helper function for condition
 fn a_condition_is_met() {
-// TODO: Implement condition
 }
 
 #[test(should_fail)]
-fn test_when_a_condition_is_met() {
+unconstrained fn test_when_a_condition_is_met() {
     stuff_is_called();
     a_condition_is_met();
     // It should revert.
