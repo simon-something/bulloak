@@ -9,15 +9,16 @@
 /// assert_eq!(to_snake_case("It should return true"), "should_return_true");
 /// ```
 pub(crate) fn to_snake_case(title: &str) -> String {
-    // Strip BDD prefixes
+    // Strip BDD prefixes (case-insensitive)
+    let title = title.trim();
     let stripped = title
-        .trim()
-        .trim_start_matches("when ")
-        .trim_start_matches("given ")
-        .trim_start_matches("it ")
-        .trim_start_matches("When ")
-        .trim_start_matches("Given ")
-        .trim_start_matches("It ");
+        .strip_prefix("when ")
+        .or_else(|| title.strip_prefix("When "))
+        .or_else(|| title.strip_prefix("given "))
+        .or_else(|| title.strip_prefix("Given "))
+        .or_else(|| title.strip_prefix("it "))
+        .or_else(|| title.strip_prefix("It "))
+        .unwrap_or(title);
 
     // Convert to snake_case
     stripped
