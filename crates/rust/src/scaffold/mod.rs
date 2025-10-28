@@ -3,11 +3,11 @@
 pub mod comment;
 pub mod generator;
 
+use anyhow::Result;
+use bulloak_syntax::Ast;
 pub use generator::Generator;
 
 use crate::config::Config;
-use anyhow::Result;
-use bulloak_syntax::Ast;
 
 /// Scaffold Rust test code from an AST.
 ///

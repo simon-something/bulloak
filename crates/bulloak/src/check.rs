@@ -18,7 +18,10 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
-use crate::{cli::{Backend, Cli}, glob::expand_glob};
+use crate::{
+    cli::{Backend, Cli},
+    glob::expand_glob,
+};
 
 /// Check that the tests match the spec.
 #[doc(hidden)]

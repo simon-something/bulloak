@@ -32,14 +32,10 @@ impl ParsedNoirFile {
             .set_language(tree_sitter_noir::language())
             .context("Failed to load Noir grammar")?;
 
-        let tree = parser
-            .parse(source, None)
-            .context("Failed to parse Noir file")?;
+        let tree =
+            parser.parse(source, None).context("Failed to parse Noir file")?;
 
-        Ok(Self {
-            source: source.to_string(),
-            tree,
-        })
+        Ok(Self { source: source.to_string(), tree })
     }
 
     /// Find all test functions in the file.
@@ -53,7 +49,11 @@ impl ParsedNoirFile {
     }
 
     /// Recursively find test functions in a node and its children.
-    fn find_test_functions_recursive<'a>(&self, node: Node<'a>, functions: &mut Vec<TestFunction>) {
+    fn find_test_functions_recursive<'a>(
+        &self,
+        node: Node<'a>,
+        functions: &mut Vec<TestFunction>,
+    ) {
         // Check if this node is a function with #[test] attribute
         if node.kind() == "function_definition" {
             if let Some(test_fn) = self.extract_test_function(node) {
@@ -69,7 +69,10 @@ impl ParsedNoirFile {
     }
 
     /// Extract test function information from a function node.
-    fn extract_test_function<'a>(&self, node: Node<'a>) -> Option<TestFunction> {
+    fn extract_test_function<'a>(
+        &self,
+        node: Node<'a>,
+    ) -> Option<TestFunction> {
         // Look for #[test] attribute
         let has_test_attr = self.has_test_attribute(node);
         if !has_test_attr {
@@ -82,10 +85,7 @@ impl ParsedNoirFile {
         // Check for should_fail
         let has_should_fail = self.has_should_fail_attribute(node);
 
-        Some(TestFunction {
-            name,
-            has_should_fail,
-        })
+        Some(TestFunction { name, has_should_fail })
     }
 
     /// Check if a function has #[test] attribute.
@@ -104,7 +104,11 @@ impl ParsedNoirFile {
     }
 
     /// Find a macro/attribute node by name (Noir uses "macro" for attributes).
-    fn find_attribute<'a>(&self, node: Node<'a>, attr_name: &str) -> Option<Node<'a>> {
+    fn find_attribute<'a>(
+        &self,
+        node: Node<'a>,
+        attr_name: &str,
+    ) -> Option<Node<'a>> {
         // Look for macro nodes before the function
         let mut sibling = node.prev_sibling();
         while let Some(s) = sibling {
@@ -123,7 +127,8 @@ impl ParsedNoirFile {
                 // Stop if we hit an identifier that's not a known modifier
                 break;
             } else if s.kind() != "comment" && s.kind() != "line_comment" {
-                // Stop if we hit something that's not a macro, comment, or known modifier
+                // Stop if we hit something that's not a macro, comment, or
+                // known modifier
                 break;
             }
             sibling = s.prev_sibling();
@@ -158,7 +163,11 @@ impl ParsedNoirFile {
     }
 
     /// Recursively find helper functions in a node and its children.
-    fn find_helper_functions_recursive<'a>(&self, node: Node<'a>, functions: &mut Vec<String>) {
+    fn find_helper_functions_recursive<'a>(
+        &self,
+        node: Node<'a>,
+        functions: &mut Vec<String>,
+    ) {
         if node.kind() == "function_definition" {
             // Check if it has #[test] attribute
             if !self.has_test_attribute(node) {
@@ -177,9 +186,7 @@ impl ParsedNoirFile {
 
     /// Get text content of a node.
     fn node_text<'a>(&self, node: Node<'a>) -> String {
-        node.utf8_text(self.source.as_bytes())
-            .unwrap_or("")
-            .to_string()
+        node.utf8_text(self.source.as_bytes()).unwrap_or("").to_string()
     }
 }
 

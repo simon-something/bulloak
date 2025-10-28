@@ -2,14 +2,7 @@
 
 /// Keywords that indicate a test should panic.
 pub(crate) const PANIC_KEYWORDS: &[&str] = &[
-    "panic",
-    "panics",
-    "revert",
-    "reverts",
-    "error",
-    "errors",
-    "fail",
-    "fails",
+    "panic", "panics", "revert", "reverts", "error", "errors", "fail", "fails",
 ];
 
 /// Name of the test context struct.

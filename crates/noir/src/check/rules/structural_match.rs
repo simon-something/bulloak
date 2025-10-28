@@ -1,10 +1,9 @@
 //! Structural matching rule for Noir tests.
 
+use std::{collections::HashSet, fs, path::Path};
+
 use anyhow::Result;
 use bulloak_syntax::Ast;
-use std::collections::HashSet;
-use std::fs;
-use std::path::Path;
 
 use crate::{
     check::violation::{Violation, ViolationKind},
@@ -37,16 +36,19 @@ pub fn check(tree_path: &Path, cfg: &Config) -> Result<Vec<Violation>> {
     let ast = bulloak_syntax::parse_one(&tree_text)?;
 
     // Find corresponding Noir test file
-    let file_stem = tree_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid tree file name: {}", tree_path.display()))?;
+    let file_stem =
+        tree_path.file_stem().and_then(|s| s.to_str()).ok_or_else(|| {
+            anyhow::anyhow!("Invalid tree file name: {}", tree_path.display())
+        })?;
 
     let test_file = tree_path.with_file_name(format!("{file_stem}_test.nr"));
 
     if !test_file.exists() {
         violations.push(Violation::new(
-            ViolationKind::NoirFileInvalid(format!("File not found: {}", test_file.display())),
+            ViolationKind::NoirFileInvalid(format!(
+                "File not found: {}",
+                test_file.display()
+            )),
             test_file.display().to_string(),
         ));
         return Ok(violations);
@@ -72,12 +74,15 @@ pub fn check(tree_path: &Path, cfg: &Config) -> Result<Vec<Violation>> {
     // Check helpers (if not skipped)
     if !cfg.skip_helpers {
         let found_helpers = parsed.find_helper_functions();
-        let found_helper_set: HashSet<String> = found_helpers.into_iter().collect();
+        let found_helper_set: HashSet<String> =
+            found_helpers.into_iter().collect();
 
         for expected_helper in &expected.helpers {
             if !found_helper_set.contains(expected_helper) {
                 violations.push(Violation::new(
-                    ViolationKind::HelperFunctionMissing(expected_helper.clone()),
+                    ViolationKind::HelperFunctionMissing(
+                        expected_helper.clone(),
+                    ),
                     test_file.display().to_string(),
                 ));
             }
@@ -92,11 +97,14 @@ pub fn check(tree_path: &Path, cfg: &Config) -> Result<Vec<Violation>> {
         .collect();
 
     for expected_test in &expected.test_functions {
-        if let Some(&has_should_fail) = found_test_map.get(&expected_test.name) {
+        if let Some(&has_should_fail) = found_test_map.get(&expected_test.name)
+        {
             // Test exists - check attributes
             if expected_test.should_fail && !has_should_fail {
                 violations.push(Violation::new(
-                    ViolationKind::ShouldFailMissing(expected_test.name.clone()),
+                    ViolationKind::ShouldFailMissing(
+                        expected_test.name.clone(),
+                    ),
                     test_file.display().to_string(),
                 ));
             }
@@ -113,7 +121,10 @@ pub fn check(tree_path: &Path, cfg: &Config) -> Result<Vec<Violation>> {
 }
 
 /// Extract expected test structure from AST.
-fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> {
+fn extract_expected_structure(
+    ast: &Ast,
+    cfg: &Config,
+) -> Result<ExpectedTests> {
     let ast_root = match ast {
         Ast::Root(r) => r,
         _ => anyhow::bail!("Expected Root node"),
@@ -128,10 +139,7 @@ fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> 
 
     collect_tests(&ast_root.children, &[], &mut test_functions, cfg);
 
-    Ok(ExpectedTests {
-        helpers,
-        test_functions,
-    })
+    Ok(ExpectedTests { helpers, test_functions })
 }
 
 /// Recursively collect helper names from conditions.
@@ -172,39 +180,41 @@ fn collect_tests(
                 // One test function for all actions under this condition
                 if !actions.is_empty() {
                     let test_name = if helpers.is_empty() {
-                        // Root level action (shouldn't really happen with a Condition parent,
-                        // but handle it just in case)
+                        // Root level action (shouldn't really happen with a
+                        // Condition parent, but handle
+                        // it just in case)
                         format!("test_{}", to_snake_case(&actions[0].title))
                     } else {
-                        // Under conditions: use the last helper name, NOT the action name
+                        // Under conditions: use the last helper name, NOT the
+                        // action name
                         format!("test_when_{}", helpers.last().unwrap())
                     };
 
-                    let should_fail = actions
-                        .iter()
-                        .any(|a| has_panic_keyword(&a.title));
+                    let should_fail =
+                        actions.iter().any(|a| has_panic_keyword(&a.title));
 
-                    tests.push(TestInfo {
-                        name: test_name,
-                        should_fail,
-                    });
+                    tests.push(TestInfo { name: test_name, should_fail });
                 }
 
-                // Recursively process only nested Condition children (not actions!)
+                // Recursively process only nested Condition children (not
+                // actions!)
                 for child in &condition.children {
                     if matches!(child, Ast::Condition(_)) {
-                        collect_tests(std::slice::from_ref(child), &helpers, tests, cfg);
+                        collect_tests(
+                            std::slice::from_ref(child),
+                            &helpers,
+                            tests,
+                            cfg,
+                        );
                     }
                 }
             }
             Ast::Action(action) => {
                 // Root-level action
-                let test_name = format!("test_{}", to_snake_case(&action.title));
+                let test_name =
+                    format!("test_{}", to_snake_case(&action.title));
                 let should_fail = has_panic_keyword(&action.title);
-                tests.push(TestInfo {
-                    name: test_name,
-                    should_fail,
-                });
+                tests.push(TestInfo { name: test_name, should_fail });
             }
             _ => {}
         }
@@ -221,10 +231,12 @@ fn has_panic_keyword(title: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use indoc::indoc;
     use std::io::Write;
+
+    use indoc::indoc;
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[test]
     fn test_check_passes_when_correct() {

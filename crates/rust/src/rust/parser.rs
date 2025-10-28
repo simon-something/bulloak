@@ -16,7 +16,8 @@ impl ParsedRustFile {
     ///
     /// Returns an error if parsing fails.
     pub fn parse(source: &str) -> Result<Self> {
-        let syntax = syn::parse_file(source).context("Failed to parse Rust file")?;
+        let syntax =
+            syn::parse_file(source).context("Failed to parse Rust file")?;
         Ok(Self { syntax })
     }
 
@@ -106,9 +107,7 @@ impl ParsedRustFile {
     /// Check if a function has #[should_panic] attribute.
     #[must_use]
     pub fn has_should_panic(func: &ItemFn) -> bool {
-        func.attrs
-            .iter()
-            .any(|attr| attr.path().is_ident("should_panic"))
+        func.attrs.iter().any(|attr| attr.path().is_ident("should_panic"))
     }
 }
 

@@ -3,11 +3,12 @@
 pub mod rules;
 pub mod violation;
 
-use anyhow::Result;
 use std::path::Path;
 
-use crate::Config;
+use anyhow::Result;
 pub use violation::Violation;
+
+use crate::Config;
 
 /// Check that a Noir test file matches its tree specification.
 ///

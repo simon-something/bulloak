@@ -1,14 +1,16 @@
 //! Structural matching rule that checks if Rust code matches the spec.
 
+use std::collections::HashSet;
+
+use anyhow::Result;
+use bulloak_syntax::Ast;
+
 use crate::{
     check::violation::{Violation, ViolationKind},
     config::Config,
     rust::ParsedRustFile,
     utils::to_snake_case,
 };
-use anyhow::Result;
-use bulloak_syntax::Ast;
-use std::collections::HashSet;
 
 /// Expected test structure extracted from AST.
 struct ExpectedTests {
@@ -69,7 +71,9 @@ pub fn check_structural_match(
         for expected_helper in &expected.helpers {
             if !found_helpers.contains(expected_helper) {
                 violations.push(Violation::new(
-                    ViolationKind::HelperFunctionMissing(expected_helper.clone()),
+                    ViolationKind::HelperFunctionMissing(
+                        expected_helper.clone(),
+                    ),
                     file_path.to_string(),
                 ));
             }
@@ -113,7 +117,10 @@ pub fn check_structural_match(
 }
 
 /// Extract expected test structure from AST.
-fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> {
+fn extract_expected_structure(
+    ast: &Ast,
+    cfg: &Config,
+) -> Result<ExpectedTests> {
     let ast_root = match ast {
         Ast::Root(r) => r,
         _ => anyhow::bail!("Expected Root node"),
@@ -130,17 +137,11 @@ fn extract_expected_structure(ast: &Ast, cfg: &Config) -> Result<ExpectedTests> 
     // Collect test functions
     collect_tests_recursive(&ast_root.children, &[], &mut test_functions);
 
-    Ok(ExpectedTests {
-        helpers,
-        test_functions,
-    })
+    Ok(ExpectedTests { helpers, test_functions })
 }
 
 /// Recursively collect helper function names.
-fn collect_helpers_recursive(
-    children: &[Ast],
-    helpers: &mut HashSet<String>,
-) {
+fn collect_helpers_recursive(children: &[Ast], helpers: &mut HashSet<String>) {
     for child in children {
         if let Ast::Condition(condition) = child {
             let name = to_snake_case(&condition.title);
@@ -164,12 +165,21 @@ fn collect_tests_recursive(
                 new_helpers.push(helper_name);
 
                 // Collect all direct action children of this condition
-                let actions: Vec<&bulloak_syntax::Action> = condition.children.iter()
-                    .filter_map(|c| if let Ast::Action(a) = c { Some(a) } else { None })
+                let actions: Vec<&bulloak_syntax::Action> = condition
+                    .children
+                    .iter()
+                    .filter_map(|c| {
+                        if let Ast::Action(a) = c {
+                            Some(a)
+                        } else {
+                            None
+                        }
+                    })
                     .collect();
 
                 if !actions.is_empty() {
-                    // Generate a single test for all actions under this condition
+                    // Generate a single test for all actions under this
+                    // condition
                     let test_name = if new_helpers.is_empty() {
                         let action_part = to_snake_case(&actions[0].title);
                         format!("test_{}", action_part)
@@ -180,19 +190,32 @@ fn collect_tests_recursive(
 
                     // Check if any action should panic
                     let should_panic = actions.iter().any(|action| {
-                        action.title.to_lowercase()
-                            .split_whitespace()
-                            .any(|w| matches!(w, "panic" | "panics" | "revert" | "reverts" | "error" | "errors" | "fail" | "fails"))
+                        action.title.to_lowercase().split_whitespace().any(
+                            |w| {
+                                matches!(
+                                    w,
+                                    "panic"
+                                        | "panics"
+                                        | "revert"
+                                        | "reverts"
+                                        | "error"
+                                        | "errors"
+                                        | "fail"
+                                        | "fails"
+                                )
+                            },
+                        )
                     });
 
-                    tests.push(TestInfo {
-                        name: test_name,
-                        should_panic,
-                    });
+                    tests.push(TestInfo { name: test_name, should_panic });
                 }
 
                 // Process nested conditions
-                collect_tests_recursive(&condition.children, &new_helpers, tests);
+                collect_tests_recursive(
+                    &condition.children,
+                    &new_helpers,
+                    tests,
+                );
             }
             Ast::Action(action) => {
                 // Root-level action (no condition)
@@ -200,18 +223,27 @@ fn collect_tests_recursive(
                     let action_part = to_snake_case(&action.title);
                     let test_name = format!("test_{}", action_part);
 
-                    let should_panic = action.title.to_lowercase()
-                        .split_whitespace()
-                        .any(|w| matches!(w, "panic" | "panics" | "revert" | "reverts" | "error" | "errors" | "fail" | "fails"));
+                    let should_panic =
+                        action.title.to_lowercase().split_whitespace().any(
+                            |w| {
+                                matches!(
+                                    w,
+                                    "panic"
+                                        | "panics"
+                                        | "revert"
+                                        | "reverts"
+                                        | "error"
+                                        | "errors"
+                                        | "fail"
+                                        | "fails"
+                                )
+                            },
+                        );
 
-                    tests.push(TestInfo {
-                        name: test_name,
-                        should_panic,
-                    });
+                    tests.push(TestInfo { name: test_name, should_panic });
                 }
             }
             _ => {}
         }
     }
 }
-

@@ -17,21 +17,17 @@ impl Violation {
     /// Create a new violation.
     #[must_use]
     pub fn new(kind: ViolationKind, file_path: String) -> Self {
-        Self {
-            kind,
-            file_path,
-            line: None,
-        }
+        Self { kind, file_path, line: None }
     }
 
     /// Create a new violation with a line number.
     #[must_use]
-    pub fn with_line(kind: ViolationKind, file_path: String, line: usize) -> Self {
-        Self {
-            kind,
-            file_path,
-            line: Some(line),
-        }
+    pub fn with_line(
+        kind: ViolationKind,
+        file_path: String,
+        line: usize,
+    ) -> Self {
+        Self { kind, file_path, line: Some(line) }
     }
 }
 

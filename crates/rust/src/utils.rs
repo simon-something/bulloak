@@ -54,9 +54,6 @@ mod tests {
             to_snake_case("It should return the sum"),
             "should_return_the_sum"
         );
-        assert_eq!(
-            to_snake_case("given a valid input"),
-            "a_valid_input"
-        );
+        assert_eq!(to_snake_case("given a valid input"), "a_valid_input");
     }
 }

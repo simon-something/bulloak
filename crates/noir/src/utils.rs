@@ -44,8 +44,14 @@ mod tests {
 
     #[test]
     fn test_to_snake_case() {
-        assert_eq!(to_snake_case("When user is logged in"), "user_is_logged_in");
-        assert_eq!(to_snake_case("It should return true"), "should_return_true");
+        assert_eq!(
+            to_snake_case("When user is logged in"),
+            "user_is_logged_in"
+        );
+        assert_eq!(
+            to_snake_case("It should return true"),
+            "should_return_true"
+        );
         assert_eq!(to_snake_case("given amount is zero"), "amount_is_zero");
         assert_eq!(
             to_snake_case("When first arg is bigger than second arg"),

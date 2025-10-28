@@ -51,7 +51,10 @@ fn check_noir_fails_when_missing_test_function() {
 
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("Missing test function") || stderr.contains("is missing"));
+    assert!(
+        stderr.contains("Missing test function")
+            || stderr.contains("is missing")
+    );
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -66,7 +69,10 @@ fn check_noir_fails_when_missing_helper() {
 
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("Missing helper function") || stderr.contains("is missing"));
+    assert!(
+        stderr.contains("Missing helper function")
+            || stderr.contains("is missing")
+    );
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -77,7 +83,8 @@ fn check_noir_passes_with_skip_helpers() {
     let tests_path = cwd.join("tests").join("check_noir");
     let tree_path = tests_path.join("no_helpers.tree");
 
-    let output = cmd(&binary_path, "check", &tree_path, &["--lang", "noir", "-m"]);
+    let output =
+        cmd(&binary_path, "check", &tree_path, &["--lang", "noir", "-m"]);
 
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();

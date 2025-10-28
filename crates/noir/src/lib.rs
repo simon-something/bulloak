@@ -1,7 +1,8 @@
 //! Noir backend for bulloak.
 //!
 //! This crate provides Noir test generation and validation for bulloak,
-//! converting `.tree` specifications into Noir test files with `#[test]` attributes.
+//! converting `.tree` specifications into Noir test files with `#[test]`
+//! attributes.
 
 #![warn(missing_docs)]
 #![warn(unreachable_pub)]
@@ -14,10 +15,9 @@ pub mod scaffold;
 mod constants;
 mod utils;
 
-pub use config::Config;
-
 use anyhow::Result;
 use bulloak_syntax::Ast;
+pub use config::Config;
 
 /// Generate Noir test code from an AST.
 ///

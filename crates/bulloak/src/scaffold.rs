@@ -13,7 +13,10 @@ use forge_fmt::fmt;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
-use crate::{cli::{Backend, Cli}, glob::expand_glob};
+use crate::{
+    cli::{Backend, Cli},
+    glob::expand_glob,
+};
 
 /// Generate test files based on your spec.
 #[doc(hidden)]
@@ -113,7 +116,11 @@ impl Scaffold {
             Backend::Rust => {
                 let ast = bulloak_syntax::parse_one(&text)?;
                 let rust_cfg = bulloak_rust::Config {
-                    files: self.files.iter().map(|p| p.display().to_string()).collect(),
+                    files: self
+                        .files
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect(),
                     skip_helpers: self.skip_modifiers,
                     format_descriptions: self.format_descriptions,
                 };
@@ -145,10 +152,10 @@ impl Scaffold {
 
     /// Builds the output file path for a given input file.
     fn build_output_path(file: &Path, suffix: &str) -> anyhow::Result<PathBuf> {
-        let file_stem = file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid file name: {}", file.display()))?;
+        let file_stem =
+            file.file_stem().and_then(|s| s.to_str()).ok_or_else(|| {
+                anyhow::anyhow!("Invalid file name: {}", file.display())
+            })?;
         Ok(file.with_file_name(format!("{file_stem}{suffix}")))
     }
 
