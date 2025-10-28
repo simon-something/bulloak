@@ -107,6 +107,13 @@ pub fn check(tree_path: &Path, cfg: &Config) -> Result<Vec<Violation>> {
                     ),
                     test_file.display().to_string(),
                 ));
+            } else if !expected_test.should_fail && has_should_fail {
+                violations.push(Violation::new(
+                    ViolationKind::ShouldFailUnexpected(
+                        expected_test.name.clone(),
+                    ),
+                    test_file.display().to_string(),
+                ));
             }
         } else {
             // Test is missing

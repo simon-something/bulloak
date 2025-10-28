@@ -109,6 +109,15 @@ pub fn check_structural_match(
                     },
                     file_path.to_string(),
                 ));
+            } else if !expected_test.should_panic && has_should_panic {
+                violations.push(Violation::new(
+                    ViolationKind::TestAttributeIncorrect {
+                        function: expected_test.name.clone(),
+                        expected: "none".to_string(),
+                        found: "#[should_panic]".to_string(),
+                    },
+                    file_path.to_string(),
+                ));
             }
         }
     }

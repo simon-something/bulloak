@@ -22,6 +22,8 @@ pub enum ViolationKind {
     HelperFunctionMissing(String),
     /// A test should have `#[test(should_fail)]` but doesn't.
     ShouldFailMissing(String),
+    /// A test has `#[test(should_fail)]` but shouldn't.
+    ShouldFailUnexpected(String),
 }
 
 impl Violation {
@@ -48,6 +50,13 @@ impl fmt::Display for Violation {
                 write!(
                     f,
                     "Test '{}' should have #[test(should_fail)] in {}",
+                    name, self.file
+                )
+            }
+            ViolationKind::ShouldFailUnexpected(name) => {
+                write!(
+                    f,
+                    "Test '{}' has #[test(should_fail)] but shouldn't in {}",
                     name, self.file
                 )
             }

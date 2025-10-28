@@ -86,3 +86,21 @@ fn check_rust_passes_with_skip_helpers() {
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(stdout.contains("All checks completed successfully"));
 }
+
+#[cfg(not(target_os = "windows"))]
+#[test]
+fn check_rust_fails_when_unexpected_should_panic() {
+    let cwd = env::current_dir().unwrap();
+    let binary_path = get_binary_path();
+    let tests_path = cwd.join("tests").join("check_rust");
+    let tree_path = tests_path.join("unexpected_should_panic.tree");
+
+    let output = cmd(&binary_path, "check", &tree_path, &["--lang", "rust"]);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("expected none, found #[should_panic]")
+            || stderr.contains("has incorrect attributes")
+    );
+}
