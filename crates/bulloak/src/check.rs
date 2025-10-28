@@ -176,8 +176,8 @@ impl Check {
         }
     }
 
-    /// Run check for Rust tests.
-    fn run_rust_check(&self) {
+    /// Expand glob patterns into file paths.
+    fn expand_specs(&self) -> Vec<PathBuf> {
         let mut specs = Vec::new();
         for pattern in &self.files {
             match expand_glob(pattern.clone()) {
@@ -190,74 +190,50 @@ impl Check {
                 ),
             }
         }
+        specs
+    }
 
-        let rust_cfg = bulloak_rust::Config {
+    /// Run check for Rust tests.
+    fn run_rust_check(&self) {
+        let specs = self.expand_specs();
+        let cfg = bulloak_rust::Config {
             files: self.files.iter().map(|p| p.display().to_string()).collect(),
             skip_helpers: self.skip_modifiers,
             format_descriptions: self.format_descriptions,
         };
 
-        let mut all_violations = Vec::new();
-        for tree_path in specs {
-            match bulloak_rust::check::check(&tree_path, &rust_cfg) {
-                Ok(violations) => {
-                    for violation in &violations {
-                        eprintln!("{}", violation);
-                    }
-                    all_violations.extend(violations);
-                }
-                Err(e) => {
-                    eprintln!(
-                        "{}: Failed to check {}: {}",
-                        "error".red(),
-                        tree_path.display(),
-                        e
-                    );
-                }
-            }
-        }
+        let violations = self.collect_violations(&specs, |path| {
+            bulloak_rust::check::check(path, &cfg)
+        });
 
-        if all_violations.is_empty() {
-            println!(
-                "{}",
-                "All checks completed successfully! No issues found.".green()
-            );
-        } else {
-            let check_literal = pluralize(all_violations.len(), "check", "checks");
-            eprintln!(
-                "\n{}: {} {} failed",
-                "warn".bold().yellow(),
-                all_violations.len(),
-                check_literal
-            );
-            std::process::exit(1);
-        }
+        self.report_violations(&violations);
     }
 
     /// Run check for Noir tests.
     fn run_noir_check(&self) {
-        let mut specs = Vec::new();
-        for pattern in &self.files {
-            match expand_glob(pattern.clone()) {
-                Ok(iter) => specs.extend(iter),
-                Err(e) => eprintln!(
-                    "{}: could not expand {}: {}",
-                    "warn".yellow(),
-                    pattern.display(),
-                    e
-                ),
-            }
-        }
-
-        let noir_cfg = bulloak_noir::Config {
+        let specs = self.expand_specs();
+        let cfg = bulloak_noir::Config {
             files: self.files.iter().map(|p| p.display().to_string()).collect(),
             skip_helpers: self.skip_modifiers,
             format_descriptions: self.format_descriptions,
         };
 
+        let violations = self.collect_violations(&specs, |path| {
+            bulloak_noir::check::check(path, &cfg)
+        });
+
+        self.report_violations(&violations);
+    }
+
+    /// Collect violations from checking multiple tree files.
+    fn collect_violations<F, V>(&self, specs: &[PathBuf], check_fn: F) -> Vec<V>
+    where
+        F: Fn(&PathBuf) -> anyhow::Result<Vec<V>>,
+        V: std::fmt::Display,
+    {
         let mut all_violations = Vec::new();
         for tree_path in specs {
-            match bulloak_noir::check::check(&tree_path, &noir_cfg) {
+            match check_fn(tree_path) {
                 Ok(violations) => {
                     for violation in &violations {
                         eprintln!("{}", violation);
@@ -274,18 +250,22 @@ impl Check {
                 }
             }
         }
+        all_violations
+    }
 
-        if all_violations.is_empty() {
+    /// Report violations and exit if necessary.
+    fn report_violations<V: std::fmt::Display>(&self, violations: &[V]) {
+        if violations.is_empty() {
             println!(
                 "{}",
                 "All checks completed successfully! No issues found.".green()
             );
         } else {
-            let check_literal = pluralize(all_violations.len(), "check", "checks");
+            let check_literal = pluralize(violations.len(), "check", "checks");
             eprintln!(
                 "\n{}: {} {} failed",
                 "warn".bold().yellow(),
-                all_violations.len(),
+                violations.len(),
                 check_literal
             );
             std::process::exit(1);
