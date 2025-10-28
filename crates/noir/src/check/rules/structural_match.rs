@@ -37,10 +37,12 @@ pub fn check(tree_path: &Path, cfg: &Config) -> Result<Vec<Violation>> {
     let ast = bulloak_syntax::parse_one(&tree_text)?;
 
     // Find corresponding Noir test file
-    let test_file = tree_path.with_file_name(format!(
-        "{}_test.nr",
-        tree_path.file_stem().unwrap().to_str().unwrap()
-    ));
+    let file_stem = tree_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid tree file name: {}", tree_path.display()))?;
+
+    let test_file = tree_path.with_file_name(format!("{file_stem}_test.nr"));
 
     if !test_file.exists() {
         violations.push(Violation::new(

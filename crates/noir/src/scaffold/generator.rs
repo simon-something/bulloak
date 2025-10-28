@@ -64,9 +64,8 @@ fn collect_helpers_recursive(children: &[Ast], helpers: &mut HashSet<String>) {
 fn generate_helper_function(name: &str) -> String {
     format!(
         "/// Helper function for condition\n\
-         fn {}() {{\n\
-         }}\n",
-        name
+         fn {name}() {{\n\
+         }}\n"
     )
 }
 
@@ -149,17 +148,19 @@ fn generate_test_function(actions: &[&Action], helpers: &[String], cfg: &Config)
     // Call helpers in order
     if !cfg.skip_helpers {
         for helper in helpers {
-            body.push_str(&format!("    {}();\n", helper));
+            use std::fmt::Write;
+            let _ = writeln!(body, "    {helper}();");
         }
     }
 
     // Add action comments
     for action in actions {
         let comment = format_action_comment(&action.title, cfg.format_descriptions);
-        body.push_str(&format!("    // {}\n", comment));
+        use std::fmt::Write;
+        let _ = writeln!(body, "    // {comment}");
     }
 
-    format!("{}unconstrained fn {}() {{\n{}}}\n\n", attr, test_name, body)
+    format!("{attr}unconstrained fn {test_name}() {{\n{body}}}\n\n")
 }
 
 /// Format an action comment.
@@ -191,12 +192,12 @@ mod tests {
 
     #[test]
     fn test_generate_basic() {
-        let tree = r#"
+        let tree = r"
 hash_pair
 ├── It should always work.
 └── When first arg is smaller
     └── It should match result.
-"#;
+";
 
         let ast = parse_one(tree).unwrap();
         let cfg = Config::default();
@@ -210,11 +211,11 @@ hash_pair
 
     #[test]
     fn test_generate_with_panic() {
-        let tree = r#"
+        let tree = r"
 divide
 └── When divisor is zero
     └── It should panic with division by zero.
-"#;
+";
 
         let ast = parse_one(tree).unwrap();
         let cfg = Config::default();
@@ -226,11 +227,11 @@ divide
 
     #[test]
     fn test_skip_helpers() {
-        let tree = r#"
+        let tree = r"
 test_root
 └── When condition
     └── It should work.
-"#;
+";
 
         let ast = parse_one(tree).unwrap();
         let cfg = Config {
