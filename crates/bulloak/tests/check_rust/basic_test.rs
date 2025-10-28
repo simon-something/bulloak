@@ -7,10 +7,6 @@ struct TestContext {}
 fn first_arg_is_smaller_than_second_arg(mut ctx: TestContext) -> TestContext {
     ctx
 }
-/// Helper: When first arg is zero
-fn first_arg_is_zero(mut ctx: TestContext) -> TestContext {
-    ctx
-}
 /// Helper: When first arg is bigger than second arg
 fn first_arg_is_bigger_than_second_arg(mut ctx: TestContext) -> TestContext {
     ctx
@@ -19,26 +15,14 @@ fn first_arg_is_bigger_than_second_arg(mut ctx: TestContext) -> TestContext {
 mod tests {
     use super::*;
     #[test]
-    #[should_panic]
-    fn test_should_never_revert() {
-        // It should never revert.
-    }
-    #[test]
     fn test_when_first_arg_is_smaller_than_second_arg() {
         let _ctx = first_arg_is_smaller_than_second_arg(TestContext::default());
-        // It should match the result of `keccak256(abi.encodePacked(a,b))`.
-    }
-    #[test]
-    fn test_when_first_arg_is_zero() {
-        let _ctx = first_arg_is_zero(
-            first_arg_is_smaller_than_second_arg(TestContext::default()),
-        );
-        // It should do something.
+        // It should match the result of hash(a, b).
     }
     #[test]
     fn test_when_first_arg_is_bigger_than_second_arg() {
         let _ctx = first_arg_is_bigger_than_second_arg(TestContext::default());
-        // It should match the result of `keccak256(abi.encodePacked(b,a))`.
+        // It should match the result of hash(b, a).
     }
 }
 

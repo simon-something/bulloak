@@ -35,5 +35,13 @@ assert_cmd = "2.0"
 name = "emit"
 harness = false
 
+[[bench]]
+name = "emit_rust"
+harness = false
+
+[[bench]]
+name = "emit_noir"
+harness = false
+
 [lints]
 workspace = true

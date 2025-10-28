@@ -11,26 +11,29 @@ mod common;
 fn scaffolds_rust_trees() {
     let cwd = env::current_dir().unwrap();
     let binary_path = get_binary_path();
-    let tests_path = cwd.join("tests").join("scaffold_rust");
+    let trees_path = cwd.join("tests").join("scaffold");
+    let outputs_path = cwd.join("tests").join("scaffold_rust");
     let trees = [
         "basic.tree",
-        "with_panic.tree",
-        "no_helpers.tree",
-        "nested.tree",
-        "deeply_nested.tree",
-        "multiple_actions.tree",
+        "complex.tree",
+        "disambiguation.tree",
+        "duplicated_condition.tree",
+        "duplicated_top_action.tree",
+        "empty.tree",
+        "format_descriptions.tree",
+        "hash_pair.tree",
+        "removes_invalid_title_chars.tree",
+        "revert_when.tree",
+        "skip_modifiers.tree",
+        "spurious_comments.tree",
     ];
 
     for tree_name in trees {
-        let tree_path = tests_path.join(tree_name);
+        let tree_path = trees_path.join(tree_name);
         let output = cmd(&binary_path, "scaffold", &tree_path, &["--lang", "rust"]);
         let actual = String::from_utf8(output.stdout).unwrap();
 
-        let mut output_file = tree_path.clone();
-        output_file.set_extension("");
-        let mut output_file_str = output_file.into_os_string();
-        output_file_str.push("_test.rs");
-        let output_file: std::path::PathBuf = output_file_str.into();
+        let output_file = outputs_path.join(tree_name.replace(".tree", "_test.rs"));
 
         let expected = fs::read_to_string(&output_file).unwrap_or_else(|_| {
             panic!(
@@ -54,10 +57,9 @@ fn scaffolds_rust_trees() {
 fn scaffolds_rust_trees_skip_helpers() {
     let cwd = env::current_dir().unwrap();
     let binary_path = get_binary_path();
-    let tests_path = cwd.join("tests").join("scaffold_rust");
-    let tree_name = "basic.tree";
+    let trees_path = cwd.join("tests").join("scaffold");
+    let tree_path = trees_path.join("basic.tree");
 
-    let tree_path = tests_path.join(tree_name);
     let output = cmd(&binary_path, "scaffold", &tree_path, &["--lang", "rust", "-m"]);
     let actual = String::from_utf8(output.stdout).unwrap();
 
@@ -76,10 +78,9 @@ fn scaffolds_rust_trees_skip_helpers() {
 fn scaffolds_rust_trees_format_descriptions() {
     let cwd = env::current_dir().unwrap();
     let binary_path = get_binary_path();
-    let tests_path = cwd.join("tests").join("scaffold_rust");
-    let tree_name = "basic.tree";
+    let trees_path = cwd.join("tests").join("scaffold");
+    let tree_path = trees_path.join("basic.tree");
 
-    let tree_path = tests_path.join(tree_name);
     let output = cmd(
         &binary_path,
         "scaffold",
@@ -89,6 +90,6 @@ fn scaffolds_rust_trees_format_descriptions() {
     let actual = String::from_utf8(output.stdout).unwrap();
 
     // Comments should be capitalized and have periods
-    assert!(actual.contains("// It should match the result of hash(a, b)."));
-    assert!(actual.contains("// It should match the result of hash(b, a)."));
+    assert!(actual.contains("// It should match the result of `keccak256(abi.encodePacked(a,b))`."));
+    assert!(actual.contains("// It should match the result of `keccak256(abi.encodePacked(b,a))`."));
 }
